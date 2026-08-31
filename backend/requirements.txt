@@ -1,0 +1,38 @@
+# --- Web framework -----------------------------------------------------
+fastapi>=0.115.0
+uvicorn[standard]>=0.32.0
+
+# --- Validation / settings ----------------------------------------------
+pydantic>=2.9.0
+pydantic-settings>=2.5.0
+
+# --- Database -------------------------------------------------------------
+supabase>=2.9.0
+
+# --- AI providers -----------------------------------------------------------
+google-genai>=0.3.0
+google-cloud-vision>=3.7.0
+
+# --- FHIR ---------------------------------------------------------------------
+fhir.resources>=7.1.0
+
+# --- Auth / security ----------------------------------------------------------
+pyjwt>=2.9.0
+passlib>=1.7.4
+# Pinned: passlib 1.7.4's bcrypt backend detection is incompatible with
+# bcrypt>=4.1 (removed `__about__`), causing spurious ValueErrors.
+bcrypt==4.0.1
+
+# --- HTTP client (also used by TestClient) --------------------------------------
+httpx>=0.27.0
+
+# --- Config -----------------------------------------------------------------------
+python-dotenv>=1.0.1
+python-multipart>=0.0.12
+
+# --- Dev / testing (also fine to keep in main requirements for simplicity) --------
+pytest>=8.3.0
+pytest-asyncio>=0.24.0
+pytest-env>=1.1.5
+ruff>=0.6.9
+mypy>=1.11.0
