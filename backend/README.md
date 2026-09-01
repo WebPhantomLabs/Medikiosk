@@ -1,182 +1,167 @@
 # MediKiosk Backend
 
-FastAPI backend for the MediKiosk healthcare kiosk system. See `PRD.md` in the
-project root (or the repository docs) for the full product/technical
-specification this implementation follows.
+FastAPI backend for the MediKiosk healthcare kiosk system.
 
-**Current status: Phase 0 — Project Foundation.** This phase provides the
-running application skeleton, configuration, database schema, dev tooling,
-and test harness. Feature endpoints (auth, sessions, intake, documents,
-doctor, FHIR, admin) are wired as registered-but-empty routers and are
-implemented in subsequent phases — see [Roadmap](#roadmap) below.
+The MediKiosk backend manages a patient's complete pre-consultation journey:
+1. Temporary unauthenticated kiosk sessions & demographic capture.
+2. Predefined health-intake question flow with Gemini AI routing against backend-approved transitions.
+3. Concurrency-safe, atomic queue/token allocation.
+4. Prescription & medical document upload pipeline with Google Cloud Vision OCR.
+5. Structured medication extraction via Gemini without clinical code fabrication.
+6. Authenticated doctor queue inspection & comprehensive encounter reviews.
+7. Authoritative clinical diagnosis recording by doctors.
+8. Validated FHIR R4 Bundle generation (`Composition`, `Patient`, `Condition`, `Observation`).
+9. Administrator APIs for Question Bank, Staff, and Kiosks.
+10. Secure audit logging and sensitive data scrubbing.
 
 ---
 
-## 1. Prerequisites
+## 1. Engineering Principles
 
+```text
+DATABASE = SYSTEM OF RECORD
+BACKEND  = SYSTEM OF CONTROL
+GEMINI   = CLASSIFICATION / EXTRACTION ASSISTANT
+VISION   = OCR TRANSCRIPTION SERVICE
+DOCTOR   = SOLE CLINICAL AUTHORITY
+FHIR     = STANDARDIZED INTEROPERABLE OUTPUT
+FRONTEND = CLIENT OF THE API
+```
+
+---
+
+## 2. Architecture & Directory Structure
+
+```text
+backend/
+├── app/
+│   ├── main.py                  # FastAPI application entrypoint & middleware
+│   ├── api/
+│   │   ├── dependencies.py      # Auth, RBAC & provider dependency injection
+│   │   └── routers/
+│   │       ├── auth.py          # Staff login, refresh, logout, me
+│   │       ├── sessions.py      # Kiosk session creation & demographics
+│   │       ├── intake.py        # Question-answering & AI routing & queue token
+│   │       ├── documents.py     # Prescription upload, OCR & medication extraction
+│   │       ├── doctor.py        # Doctor queue, encounter review, authoritative diagnosis
+│   │       ├── fhir.py          # FHIR R4 bundle generation
+│   │       ├── question_bank.py # Admin question & transition CRUD
+│   │       ├── staff.py         # Admin staff management CRUD
+│   │       ├── kiosks.py        # Admin kiosk management CRUD
+│   │       └── health.py        # /health (liveness) & /health/ready (readiness)
+│   ├── core/
+│   │   ├── config.py            # Typed settings via pydantic-settings
+│   │   ├── exceptions.py        # Standardized error hierarchy
+│   │   ├── logging.py           # Structured logging & PII redaction
+│   │   └── security.py          # Password hashing (bcrypt) & JWT access/refresh
+│   ├── db/
+│   │   ├── supabase.py          # Async Supabase client
+│   │   └── migrations/
+│   │       ├── 0001_init.sql    # Core database schema & RLS policies
+│   │       └── 0002_seed.sql    # Seed data (questions, demo staff, kiosks)
+│   ├── repositories/            # Encapsulated database access layer
+│   ├── schemas/                 # Pydantic V2 request & response models
+│   ├── services/
+│   │   ├── ai/                  # AIProvider abstraction (Gemini & Mock)
+│   │   ├── ocr/                 # OCRProvider abstraction (Google Vision & Mock)
+│   │   ├── storage/             # StorageProvider abstraction (Local & Mock)
+│   │   ├── auth_service.py      # Staff auth & token lifecycle
+│   │   ├── session_service.py   # Kiosk session onboarding
+│   │   ├── intake_service.py    # Intake question engine & transition validation
+│   │   ├── document_service.py  # Upload, OCR & medication extraction
+│   │   ├── doctor_service.py    # Queue retrieval, encounters, diagnosis
+│   │   ├── fhir_service.py      # FHIR R4 Bundle generator (fhir.resources)
+│   │   └── admin_service.py     # Admin CRUD & audit trails
+│   └── utils/
+│       └── file_validator.py    # MIME type & magic byte verification
+├── tests/
+│   ├── conftest.py              # Self-contained in-memory DB & provider test fixtures
+│   ├── unit/                    # Security, intake engine, queue, OCR, FHIR unit tests
+│   ├── api/                     # REST API & RBAC tests
+│   └── integration/             # Full patient pre-consultation journey integration test
+├── Dockerfile                   # Production container build
+├── requirements.txt
+└── .env.example
+```
+
+---
+
+## 3. Local Development Setup
+
+### 1. Prerequisites
 - Python 3.11+
-- A Supabase project (Postgres) — for later phases; not required to run
-  Phase 0's `/health` check and test suite
-- (Later phases) Gemini API key, Google Cloud Vision service-account credentials
+- Virtual environment (`venv`)
 
-## 2. Setup
-
+### 2. Setup & Installation
 ```bash
-# 1. Create and activate a virtual environment
-python3.11 -m venv .venv
-source .venv/bin/activate        # Windows: .venv\Scripts\activate
+# 1. Create and activate virtual environment
+python -m venv .venv
+source .venv/bin/activate       # On Linux/macOS
+.\.venv\Scripts\Activate.ps1    # On Windows PowerShell
 
 # 2. Install dependencies
 pip install -r requirements.txt
 
-# 3. Configure environment variables
+# 3. Configure environment
 cp .env.example .env
-# Edit .env and fill in SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY, JWT_SECRET_KEY, etc.
 ```
 
-## 3. Apply database migrations
-
-Migrations live in `app/db/migrations/` as plain, version-controlled SQL
-files, applied in order.
-
+### 3. Run Server
 ```bash
-# Using the Supabase CLI (recommended):
-supabase db push
-
-# Or run the SQL directly against your Postgres instance, e.g.:
-psql "$DATABASE_URL" -f app/db/migrations/0001_init.sql
+uvicorn app.main:app --reload --port 8000
 ```
+- API Docs (Swagger): `http://localhost:8000/docs`
+- ReDoc: `http://localhost:8000/redoc`
+- Liveness Probe: `http://localhost:8000/health`
+- Readiness Probe: `http://localhost:8000/health/ready`
 
-`0001_init.sql` creates all core entities (staff, refresh_tokens, otp_codes,
-kiosks, patients, question_bank, question_transitions, sessions,
-queue_tokens, intake_answers, documents, ocr_results, medications,
-doctor_encounters, diagnoses, audit_logs), enables Row Level Security on
-every table with no permissive policies (the backend uses the Supabase
-service-role key, which bypasses RLS by design — no other key should ever
-be used), and documents the one schema assumption this build made (see the
-comment header in that file).
+---
 
-## 4. Run the server
+## 4. Running Automated Tests
 
+Run the complete test suite (unit, API, integration):
 ```bash
-uvicorn app.main:app --reload
+pytest -v
 ```
 
-- App: http://localhost:8000
-- Swagger UI: http://localhost:8000/docs
-- ReDoc: http://localhost:8000/redoc
-- Health check: http://localhost:8000/health
+All 34 tests execute self-contained in memory without requiring live cloud credentials.
 
-## 5. Run tests
+---
 
+## 5. Docker Deployment
+
+Build and run container:
 ```bash
-pytest              # run the full suite
-pytest -v           # verbose
-pytest --maxfail=1  # stop on first failure
-```
-
-All 14 Phase-0 tests should pass. Tests never call paid external services;
-Gemini/Vision/SMS mocking will be added alongside the phases that use them.
-
-## 6. Lint
-
-```bash
-ruff check .            # lint
-ruff check . --fix      # auto-fix what's fixable
-mypy app                # optional type checking
+docker build -t medikiosk-backend .
+docker run -p 8000:8000 --env-file .env medikiosk-backend
 ```
 
 ---
 
-## Project Structure
+## 6. Core API Endpoints
 
-```text
-app/
-├── main.py                 # App wiring: FastAPI instance, CORS, exception handlers, router registration
-├── api/
-│   ├── dependencies.py      # Auth/RBAC dependencies (get_current_staff_user, require_role)
-│   └── routers/             # One router module per domain (thin — logic lives in services)
-├── core/
-│   ├── config.py             # Typed Settings (env-driven)
-│   ├── logging.py            # Structured, redaction-aware logging
-│   ├── exceptions.py         # Domain exceptions -> standard error envelope
-│   └── security.py           # Password hashing, OTP hashing, JWT issuing/verification
-├── schemas/                  # Pydantic V2 request/response models (per domain)
-├── repositories/              # Supabase-backed data access (one class per entity)
-├── services/                  # Business logic (empty until later phases)
-├── db/
-│   ├── supabase.py            # Shared async Supabase client
-│   └── migrations/            # Version-controlled SQL migrations
-└── utils/                     # ids.py, datetime.py
+### Authentication (Staff Only)
+- `POST /api/v1/auth/login` - Staff email/password login -> JWT access + refresh tokens
+- `POST /api/v1/auth/refresh` - Refresh access token
+- `POST /api/v1/auth/logout` - Revoke refresh token
+- `GET /api/v1/auth/me` - Authenticated staff profile
 
-tests/
-├── conftest.py                # Shared fixtures (async httpx client bound to the ASGI app)
-├── unit/                      # Fast, isolated tests
-└── integration/                # Cross-cutting behavior (error envelope, routing)
-```
+### Kiosk (Unauthenticated Patients)
+- `POST /api/v1/sessions` - Capture patient demographics, initialize kiosk visit & start question
+- `GET /api/v1/sessions/{session_id}` - Session status inspection
+- `POST /api/v1/intake/answer` - Submit spoken transcript, AI classification against DB transitions, auto queue token assignment
+- `POST /api/v1/documents/prescription` - Prescription upload, Google Vision OCR transcription, Gemini medication extraction
 
-**Principles:** routes stay thin; business logic lives in `services/`;
-database access lives in `repositories/`; every external provider (Gemini,
-Vision, SMS) sits behind a service abstraction so the rest of the app never
-depends on an SDK directly.
+### Doctor (Authenticated: DOCTOR / ADMIN)
+- `GET /api/v1/doctor/queue` - Retrieve waiting and in-consultation patient queue
+- `GET /api/v1/doctor/queue/{token_number}` - Retrieve comprehensive encounter details (demographics, intake Q&A, documents, OCR, extracted meds)
+- `POST /api/v1/doctor/encounters/{session_id}/diagnosis` - Record authoritative clinical diagnosis -> marks session COMPLETED
 
----
+### FHIR
+- `POST /api/v1/fhir/generate/{session_id}` - Generate validated FHIR R4 Bundle (`Composition`, `Patient`, `Condition`, `Observation`)
+- `GET /api/v1/fhir/{session_id}` - Retrieve encounter FHIR Bundle
 
-## Error Response Format
-
-All handled errors return a consistent envelope and never leak stack traces:
-
-```json
-{
-  "error": {
-    "code": "SESSION_NOT_FOUND",
-    "message": "Session does not exist."
-  }
-}
-```
-
-Domain-specific exception classes live in `app/core/exceptions.py`; add new
-ones there rather than raising raw `HTTPException` with ad-hoc messages.
-
----
-
-## Security Notes (Phase 0 baseline)
-
-- Passwords and OTPs are hashed with bcrypt via passlib — never stored in plaintext.
-- Access tokens are short-lived JWTs (`type: access`); refresh tokens are
-  long-lived JWTs (`type: refresh`) — one cannot be substituted for the other.
-- `require_role(...)` enforces RBAC at the dependency level; role checks are
-  never left to the frontend.
-- All Phase-0 tables have Row Level Security **enabled with no policies** —
-  only the backend's service-role key (never exposed to any client) can read
-  or write them.
-- `.env` is git-ignored; `.env.example` documents every variable with placeholder values only.
-- Logging redacts a fixed set of sensitive field names (passwords, OTPs, tokens, transcripts, diagnoses, OCR text) via `app/core/logging.py`'s `_RedactingFilter`.
-
----
-
-## Roadmap
-
-| Phase | Scope | Status |
-|---|---|---|
-| 0 | Project foundation (this phase) | ✅ Done |
-| 1 | Question engine + Gemini router | ⏳ Not started |
-| 2 | Staff OTP, kiosk sessions, queue tokens, intake API | ⏳ Not started |
-| 3 | Prescription upload, OCR, medication extraction | ⏳ Not started |
-| 4 | Doctor dashboard, diagnosis, FHIR R4 generation | ⏳ Not started |
-| 5 | Admin CRUD (questions, staff, kiosks) | ⏳ Not started |
-| 6 | Integration hardening | ⏳ Not started |
-| 7 | Security review | ⏳ Not started |
-| 8 | Docker + local run tooling | ⏳ Not started |
-| 9 | Final acceptance test | ⏳ Not started |
-
-See `PRD.md` for full detail on every phase.
-
----
-
-## Known Limitations (Phase 0)
-
-- `SUPABASE_URL`/`SUPABASE_SERVICE_ROLE_KEY` in `.env.example` are placeholders — a real Supabase project is required for anything beyond `/health` and the pure unit tests.
-- Feature routers (`auth`, `sessions`, `intake`, `documents`, `doctor`, `fhir`, admin CRUD) are registered but intentionally empty — implemented phase-by-phase.
-- The database schema in `0001_init.sql` is derived from the PRD's entity list (§19) because the canonical DDL (§13.3) was not supplied verbatim to this build. Reconcile against a canonical schema if/when one is provided.
-- No Dockerfile yet — added in Phase 8.
+### Admin (Authenticated: ADMIN)
+- `GET/POST/PUT/DELETE /api/v1/admin/questions[/{node_id}]` - Question bank & transition CRUD
+- `GET/POST/PUT/DELETE /api/v1/admin/staff[/{staff_id}]` - Staff management CRUD
+- `GET/POST/PUT/DELETE /api/v1/admin/kiosks[/{kiosk_id}]` - Kiosk management CRUD

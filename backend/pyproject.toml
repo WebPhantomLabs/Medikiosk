@@ -24,7 +24,7 @@ src = ["app", "tests"]
 
 [tool.ruff.lint]
 select = ["E", "F", "I", "B", "UP", "ASYNC"]
-ignore = ["E501"]
+ignore = ["E501", "B008", "B904", "ASYNC240"]
 
 [tool.ruff.lint.isort]
 known-first-party = ["app"]

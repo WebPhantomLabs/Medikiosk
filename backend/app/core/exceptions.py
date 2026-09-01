@@ -19,9 +19,11 @@ class MediKioskError(Exception):
     status_code: int = 500
     message: str = "An unexpected error occurred."
 
-    def __init__(self, message: str | None = None, code: str | None = None) -> None:
+    def __init__(self, message: str | None = None, code: str | None = None, status_code: int | None = None) -> None:
         self.message = message or self.message
         self.code = code or self.code
+        if status_code is not None:
+            self.status_code = status_code
         super().__init__(self.message)
 
 
@@ -30,6 +32,12 @@ class InvalidCredentialsError(MediKioskError):
     code = "INVALID_CREDENTIALS"
     status_code = 401
     message = "Invalid credentials."
+
+
+class AccountDisabledError(MediKioskError):
+    code = "ACCOUNT_DISABLED"
+    status_code = 403
+    message = "Account has been deactivated."
 
 
 class TokenExpiredError(MediKioskError):
@@ -94,6 +102,12 @@ class SessionNotActiveError(MediKioskError):
     message = "Session is not in an active state."
 
 
+class SessionConflictError(MediKioskError):
+    code = "SESSION_CONFLICT"
+    status_code = 409
+    message = "Session conflict."
+
+
 # --- Question engine / Gemini -------------------------------------------------
 class QuestionNodeNotFoundError(MediKioskError):
     code = "QUESTION_NODE_NOT_FOUND"
@@ -122,13 +136,13 @@ class LlmValidationError(MediKioskError):
 # --- Documents / OCR ------------------------------------------------------------
 class UnsupportedFileTypeError(MediKioskError):
     code = "UNSUPPORTED_FILE_TYPE"
-    status_code = 415
+    status_code = 400
     message = "Unsupported file type."
 
 
 class FileTooLargeError(MediKioskError):
     code = "FILE_TOO_LARGE"
-    status_code = 413
+    status_code = 400
     message = "Uploaded file exceeds the maximum allowed size."
 
 
@@ -170,10 +184,14 @@ class ConflictError(MediKioskError):
     message = "Resource conflict."
 
 
-class ValidationFailedError(MediKioskError):
+class ValidationError(MediKioskError):
     code = "VALIDATION_FAILED"
-    status_code = 422
+    status_code = 400
     message = "Validation failed."
+
+
+class ValidationFailedError(ValidationError):
+    status_code = 422
 
 
 class RateLimitedError(MediKioskError):

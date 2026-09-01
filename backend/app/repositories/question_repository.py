@@ -6,8 +6,7 @@ from app.repositories.base import BaseRepository
 
 
 class QuestionRepository(BaseRepository):
-    """Repository for `question_bank` nodes. `id` here is the business key
-    `node_id`, so get_by_id is overridden accordingly."""
+    """Repository for `question_bank` nodes. `node_id` is the primary key."""
 
     table_name = "question_bank"
 
@@ -27,6 +26,19 @@ class QuestionRepository(BaseRepository):
         )
         return response.data if response else None
 
+    async def list_active(self) -> list[dict[str, Any]]:
+        response = await self.table.select("*").eq("active", True).order("created_at").execute()
+        return response.data or []
+
+    async def update_by_node_id(self, node_id: str, values: dict[str, Any]) -> dict[str, Any] | None:
+        response = await self.table.update(values).eq("node_id", node_id).execute()
+        rows = response.data or []
+        return rows[0] if rows else None
+
+    async def delete_by_node_id(self, node_id: str) -> bool:
+        response = await self.table.delete().eq("node_id", node_id).execute()
+        return bool(response.data)
+
 
 class QuestionTransitionRepository(BaseRepository):
     table_name = "question_transitions"
@@ -34,3 +46,17 @@ class QuestionTransitionRepository(BaseRepository):
     async def get_transitions_for_node(self, node_id: str) -> list[dict[str, Any]]:
         response = await self.table.select("*").eq("node_id", node_id).execute()
         return response.data or []
+
+    async def get_by_node_and_category(self, node_id: str, answer_category: str) -> dict[str, Any] | None:
+        response = (
+            await self.table.select("*")
+            .eq("node_id", node_id)
+            .ilike("answer_category", answer_category)
+            .maybe_single()
+            .execute()
+        )
+        return response.data if response else None
+
+    async def delete_by_node_id(self, node_id: str) -> bool:
+        response = await self.table.delete().eq("node_id", node_id).execute()
+        return bool(response.data)

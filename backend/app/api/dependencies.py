@@ -12,9 +12,18 @@ from dataclasses import dataclass
 from fastapi import Depends, Header
 from supabase import AsyncClient
 
+from app.core.config import get_settings
 from app.core.exceptions import ForbiddenError, NotAuthenticatedError
 from app.core.security import decode_token
 from app.db.supabase import get_supabase_client
+from app.services.ai.base import AIProvider
+from app.services.ai.gemini import GeminiAIProvider
+from app.services.ai.mock import MockAIProvider
+from app.services.ocr.base import OCRProvider
+from app.services.ocr.mock import MockOCRProvider
+from app.services.ocr.vision import GoogleVisionOCRProvider
+from app.services.storage.base import StorageProvider
+from app.services.storage.local import LocalStorageProvider, MockStorageProvider
 
 
 @dataclass(frozen=True)
@@ -68,3 +77,27 @@ def require_role(*allowed_roles: str):
 async def get_db() -> AsyncClient:
     """FastAPI dependency wrapper around the shared Supabase client."""
     return await get_supabase_client()
+
+
+def get_ai_provider() -> AIProvider:
+    """Factory dependency for AIProvider."""
+    settings = get_settings()
+    if settings.GEMINI_API_KEY:
+        return GeminiAIProvider(api_key=settings.GEMINI_API_KEY, model_name=settings.GEMINI_MODEL)
+    return MockAIProvider()
+
+
+def get_ocr_provider() -> OCRProvider:
+    """Factory dependency for OCRProvider."""
+    settings = get_settings()
+    if settings.GOOGLE_APPLICATION_CREDENTIALS:
+        return GoogleVisionOCRProvider(credentials_path=settings.GOOGLE_APPLICATION_CREDENTIALS)
+    return MockOCRProvider()
+
+
+def get_storage_provider() -> StorageProvider:
+    """Factory dependency for StorageProvider."""
+    settings = get_settings()
+    if settings.APP_ENV == "test":
+        return MockStorageProvider()
+    return LocalStorageProvider()
