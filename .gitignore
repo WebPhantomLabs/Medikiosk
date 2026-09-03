@@ -1,0 +1,14 @@
+node_modules/
+.next/
+.env
+.env.local
+.env*.local
+backend/.venv/
+backend/.env
+backend/secrets/
+*.pyc
+__pycache__/
+.mypy_cache/
+.pytest_cache/
+.ruff_cache/
+uploads/

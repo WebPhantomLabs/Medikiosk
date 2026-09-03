@@ -61,16 +61,9 @@ class QueueTokenRepository(BaseRepository):
 
     async def allocate_token(self, session_id: str, kiosk_id: str, prefix: str = "T") -> dict[str, Any]:
         """Idempotently allocate queue token for a session."""
-        existing = await self.get_by_session_id(session_id)
-        if existing:
-            return existing
-
-        count = await self.count_by_kiosk(kiosk_id)
-        token_number = f"{prefix}-{count + 1:03d}"
-        now_iso = datetime.now(UTC).isoformat()
-        return await self.insert({
-            "session_id": session_id,
-            "kiosk_id": kiosk_id,
-            "token_number": token_number,
-            "issued_at": now_iso,
-        })
+        response = await self._client.rpc(
+            "allocate_queue_token",
+            {"p_session_id": session_id, "p_kiosk_id": kiosk_id, "p_prefix": prefix}
+        ).execute()
+        
+        return {"token_number": response.data}

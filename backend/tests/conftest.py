@@ -200,6 +200,39 @@ class MockDeleteQuery:
         return MockQueryResult(data=to_delete)
 
 
+class MockRPCQuery:
+    def __init__(self, db: MockDatabase, fn_name: str, params: dict[str, Any]) -> None:
+        self.db = db
+        self.fn_name = fn_name
+        self.params = params
+
+    async def execute(self) -> MockQueryResult:
+        if self.fn_name == "allocate_queue_token":
+            session_id = self.params["p_session_id"]
+            kiosk_id = self.params["p_kiosk_id"]
+            prefix = self.params.get("p_prefix", "T")
+
+            tokens = self.db.tables.setdefault("queue_tokens", [])
+            for t in tokens:
+                if t["session_id"] == session_id:
+                    return MockQueryResult(data=t["token_number"])
+
+            kiosk_tokens = [t for t in tokens if t.get("kiosk_id") == kiosk_id]
+            next_num = len(kiosk_tokens) + 1
+            token_number = f"{prefix}-{next_num:03d}"
+            new_token = {
+                "id": str(uuid.uuid4()),
+                "session_id": session_id,
+                "kiosk_id": kiosk_id,
+                "token_number": token_number,
+                "allocated_at": datetime.now(UTC).isoformat(),
+            }
+            tokens.append(new_token)
+            return MockQueryResult(data=token_number)
+
+        return MockQueryResult(data=None)
+
+
 class MockDatabase:
     def __init__(self) -> None:
         self.tables: dict[str, list[dict[str, Any]]] = {}
@@ -207,6 +240,9 @@ class MockDatabase:
 
     def table(self, table_name: str) -> MockTable:
         return MockTable(table_name, self)
+
+    def rpc(self, fn_name: str, params: dict[str, Any]) -> MockRPCQuery:
+        return MockRPCQuery(self, fn_name, params)
 
     def seed_defaults(self) -> None:
         pw_hash = hash_password("Password123!")

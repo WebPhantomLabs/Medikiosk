@@ -25,6 +25,7 @@ from app.schemas.admin import (
     QuestionUpdate,
     StaffCreate,
     StaffUpdate,
+    AdminSessionResponse,
 )
 from app.schemas.auth import StaffResponse
 from app.schemas.intake import QuestionNodeResponse, QuestionTransitionResponse
@@ -121,6 +122,8 @@ class AdminService:
         update_values = payload.model_dump(exclude_unset=True)
         if update_values:
             node = await self.question_repo.update_by_node_id(node_id, update_values)
+        if not node:
+            raise NotFoundError(f"Question node '{node_id}' not found.", code="QUESTION_NOT_FOUND")
 
         transitions = await self.transition_repo.get_transitions_for_node(node_id)
         return QuestionNodeResponse(
@@ -138,6 +141,11 @@ class AdminService:
         node = await self.question_repo.get_by_id(node_id)
         if not node:
             raise NotFoundError(f"Question node '{node_id}' not found.", code="QUESTION_NOT_FOUND")
+
+        refs = await self.db.table("question_transitions").select("id").eq("next_node_id", node_id).execute()
+        if refs.data:
+            from app.core.exceptions import MediKioskError
+            raise MediKioskError("Cannot delete question node: other transitions reference it", code="DANGLING_TRANSITION")
 
         await self.transition_repo.delete_by_node_id(node_id)
         success = await self.question_repo.delete_by_node_id(node_id)
@@ -173,10 +181,13 @@ class AdminService:
             updates["password_hash"] = hash_password(updates.pop("password"))
 
         updated = await self.staff_repo.update(staff_id, updates)
+        if not updated:
+            raise NotFoundError(f"Staff member '{staff_id}' not found.", code="STAFF_NOT_FOUND")
         return StaffResponse(**updated)
 
     async def delete_staff(self, staff_id: str, admin_id: str) -> bool:
-        return await self.staff_repo.delete(staff_id)
+        response = await self.db.table("staff").update({"active": False}).eq("id", staff_id).execute()
+        return len(response.data) > 0 if response.data else False
 
     # --- Kiosk Management ---
     async def list_kiosks(self) -> list[KioskResponse]:
@@ -197,12 +208,52 @@ class AdminService:
             raise NotFoundError(f"Kiosk '{kiosk_id}' not found.", code="KIOSK_NOT_FOUND")
 
         updated = await self.kiosk_repo.update(kiosk_id, payload.model_dump(exclude_unset=True))
+        if not updated:
+            raise NotFoundError(f"Kiosk '{kiosk_id}' not found.", code="KIOSK_NOT_FOUND")
         return KioskResponse(**updated)
 
     async def delete_kiosk(self, kiosk_id: str, admin_id: str) -> bool:
         return await self.kiosk_repo.delete(kiosk_id)
 
+    async def list_sessions(self, status: str | None = None, date_filter: str | None = None, page: int = 1, per_page: int = 20) -> list[AdminSessionResponse]:
+        query = self.db.table("sessions").select("*")
+        if status:
+            query = query.eq("status", status)
+        if date_filter:
+            query = query.gte("created_at", f"{date_filter}T00:00:00").lte("created_at", f"{date_filter}T23:59:59")
+        
+        offset = (page - 1) * per_page
+        query = query.order("created_at", desc=True).range(offset, offset + per_page - 1)
+        response = await query.execute()
+        sessions = response.data or []
+        
+        results = []
+        for s in sessions:
+            patient_row = await self.db.table("patients").select("full_name").eq("id", s["patient_id"]).maybe_single().execute()
+            kiosk_row = await self.db.table("kiosks").select("code").eq("id", s["kiosk_id"]).maybe_single().execute()
+            token_row = await self.db.table("queue_tokens").select("token_number").eq("session_id", str(s["id"])).maybe_single().execute()
+            
+            p_name = patient_row.data["full_name"] if patient_row and patient_row.data else None
+            k_code = kiosk_row.data["code"] if kiosk_row and kiosk_row.data else None
+            t_num = token_row.data["token_number"] if token_row and token_row.data else None
+            
+            results.append(AdminSessionResponse(
+                id=str(s["id"]),
+                patient_name=p_name,
+                token_number=t_num,
+                status=s["status"],
+                kiosk_code=k_code,
+                created_at=s["created_at"],
+            ))
+            
+        return results
+
     # --- Audit Logs ---
-    async def list_audit_logs(self, limit: int = 50, offset: int = 0) -> list[AuditLogResponse]:
-        logs = await self.audit_repo.list(limit=limit, offset=offset)
+    async def list_audit_logs(self, action: str | None = None, limit: int = 50, offset: int = 0) -> list[AuditLogResponse]:
+        query = self.db.table("audit_logs").select("*")
+        if action:
+            query = query.eq("action", action)
+        query = query.order("created_at", desc=True).range(offset, offset + limit - 1)
+        response = await query.execute()
+        logs = response.data or []
         return [AuditLogResponse(**log) for log in logs]

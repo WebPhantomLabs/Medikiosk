@@ -6,7 +6,7 @@ from typing import Any
 
 from supabase import AsyncClient
 
-from app.core.exceptions import NotFoundError
+from app.core.exceptions import NotFoundError, DiagnosisRequiredError, FhirBuildError
 from app.repositories.doctor_repository import DiagnosisRepository
 from app.repositories.intake_repository import IntakeAnswerRepository
 from app.repositories.patient_repository import PatientRepository
@@ -39,6 +39,8 @@ class FHIRService:
 
         # 3. Fetch Diagnosis (Doctor is authoritative)
         diag_row = await self.diagnosis_repo.get_by_session_id(session_id)
+        if not diag_row:
+            raise DiagnosisRequiredError(f"Cannot generate FHIR bundle for session '{session_id}' without a diagnosis.")
 
         # 4. Fetch Staff (Doctor)
         doctor_row = None
@@ -187,7 +189,7 @@ class FHIRService:
             },
             "date": now_iso,
             "title": "MediKiosk Patient Encounter Summary",
-            "subject": {"reference": patient_resource_id},
+            "subject": [{"reference": patient_resource_id}],
             "author": [{"reference": doctor_resource_id}],
             "section": composition_sections,
         }
@@ -210,9 +212,11 @@ class FHIRService:
         try:
             from fhir.resources.bundle import Bundle
             Bundle.model_validate(bundle)
-        except Exception:
-            # Fallback/warning on strict validation while maintaining valid structure
-            pass
+        except Exception as e:
+            import logging
+            logger = logging.getLogger(__name__)
+            logger.error("FHIR validation failed: %s", e)
+            raise FhirBuildError(str(e))
 
         return FHIRBundleResponse(
             session_id=session_id,

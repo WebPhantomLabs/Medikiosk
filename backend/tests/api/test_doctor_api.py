@@ -46,7 +46,10 @@ async def test_doctor_queue_and_diagnosis(client: AsyncClient, doctor_headers: d
     assert diag_data["diagnosis_text"] == diag_payload["diagnosis_text"]
 
     # Check session is completed
-    sess_res = await client.get(f"/api/v1/sessions/{session_id}")
+    sess_res = await client.get(
+        f"/api/v1/sessions/{session_id}",
+        headers={"X-Session-Token": session_id}
+    )
     assert sess_res.json()["status"] == "COMPLETED"
 
 

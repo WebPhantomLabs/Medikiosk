@@ -45,9 +45,15 @@ async def upload_prescription(
     )
 
 
+from app.api.dependencies import get_current_staff_user
+from app.core.exceptions import NotAuthenticatedError
+from fastapi import Header
+
 @router.get("/{document_id}", response_model=DocumentResponse)
 async def get_document(
     document_id: str,
+    session_id: str | None = None,
+    authorization: str | None = Header(default=None),
     db: AsyncClient = Depends(get_db),
     storage: StorageProvider = Depends(get_storage_provider),
     ocr: OCRProvider = Depends(get_ocr_provider),
@@ -55,4 +61,16 @@ async def get_document(
 ) -> DocumentResponse:
     """Retrieve document details, raw OCR transcription, and structured medications."""
     service = DocumentService(db, storage, ocr, ai)
-    return await service.get_document_details(document_id)
+    doc = await service.get_document_details(document_id)
+    
+    if session_id and doc.session_id == session_id:
+        pass
+    elif authorization:
+        try:
+            await get_current_staff_user(authorization=authorization)
+        except NotAuthenticatedError:
+            raise NotAuthenticatedError("Missing or invalid staff authorization or session_id mismatch.")
+    else:
+        raise NotAuthenticatedError("Missing or invalid staff authorization or session_id mismatch.")
+        
+    return doc

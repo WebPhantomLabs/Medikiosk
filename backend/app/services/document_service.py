@@ -105,7 +105,7 @@ class DocumentService:
                 size_bytes=len(file_bytes),
                 status="COMPLETED",
                 error_message=None,
-                created_at=updated_doc["created_at"],
+                created_at=updated_doc["created_at"] if updated_doc else doc_record["created_at"],
                 ocr_result=OCRResultResponse(
                     document_id=doc_id,
                     raw_text=raw_text,

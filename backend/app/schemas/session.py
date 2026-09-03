@@ -34,14 +34,7 @@ class SessionResponse(BaseModel):
     id: str
     patient_id: str
     kiosk_id: str
-    status: Literal[
-        "CREATED",
-        "INTAKE_IN_PROGRESS",
-        "WAITING_FOR_DOCTOR",
-        "IN_CONSULTATION",
-        "COMPLETED",
-        "CANCELLED",
-    ]
+    status: str
     current_node_id: str | None = None
     created_at: datetime | str
     updated_at: datetime | str

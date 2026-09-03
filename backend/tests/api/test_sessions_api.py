@@ -35,6 +35,9 @@ async def test_get_session(client: AsyncClient):
     )
     session_id = create_res.json()["id"]
 
-    get_res = await client.get(f"/api/v1/sessions/{session_id}")
+    get_res = await client.get(
+        f"/api/v1/sessions/{session_id}",
+        headers={"X-Session-Token": session_id}
+    )
     assert get_res.status_code == 200
     assert get_res.json()["id"] == session_id

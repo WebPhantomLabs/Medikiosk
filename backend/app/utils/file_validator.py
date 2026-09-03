@@ -39,13 +39,9 @@ def validate_file(
             break
 
     if not matched_mime:
-        # If magic check didn't match known signatures, verify if declared is allowed but with loose byte check
-        if declared_mime_type in ALLOWED_MIME_TYPES:
-            matched_mime = declared_mime_type
-        else:
-            raise ValidationError(
-                f"Unsupported file format '{declared_mime_type}'. Permitted formats: JPEG, PNG, PDF.",
-                code="UNSUPPORTED_MEDIA_TYPE",
-            )
+        raise ValidationError(
+            f"Unsupported file format or invalid file signature. Permitted formats: JPEG, PNG, PDF.",
+            code="UNSUPPORTED_MEDIA_TYPE",
+        )
 
     return matched_mime

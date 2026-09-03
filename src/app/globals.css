@@ -1,0 +1,65 @@
+@import "tailwindcss";
+
+/* Custom animations */
+@keyframes pulse-slow {
+  0%, 100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.5;
+  }
+}
+
+.animate-pulse-slow {
+  animation: pulse-slow 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+}
+
+/* Print styles for token */
+@media print {
+  body * {
+    visibility: hidden;
+  }
+  .print-token, .print-token * {
+    visibility: visible;
+  }
+  .print-token {
+    position: absolute;
+    left: 0;
+    top: 0;
+    width: 100%;
+  }
+}
+
+/* Custom scrollbar */
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: #f1f1f1;
+}
+
+::-webkit-scrollbar-thumb {
+  background: #888;
+  border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: #555;
+}
+
+/* High contrast mode support */
+.high-contrast {
+  filter: contrast(1.5) saturate(1.2);
+}
+
+.high-contrast * {
+  border-color: #000 !important;
+}
+
+.high-contrast .text-gray-500,
+.high-contrast .text-gray-600 {
+  color: #111 !important;
+  font-weight: 700 !important;
+}

@@ -81,13 +81,11 @@ Rules:
             # Verify against allowed categories
             matching_cat = next((c for c in allowed_categories if c.lower() == category.lower()), None)
             if not matching_cat:
-                logger.warning(
-                    "Gemini returned category '%s' not in allowed %s, falling back to first allowed.",
-                    category,
-                    allowed_categories,
+                from app.core.exceptions import LlmValidationError
+                raise LlmValidationError(
+                    f"Gemini returned category '{category}' not in allowed categories.",
+                    code="AI_VALIDATION_ERROR"
                 )
-                matching_cat = allowed_categories[0]
-                confidence = 0.5
 
             return AnswerClassificationResult(
                 classified_category=matching_cat,

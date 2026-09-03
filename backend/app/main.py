@@ -25,6 +25,8 @@ from app.api.routers import (
     kiosks,
     question_bank,
     sessions,
+    sessions_admin,
+    audit,
     staff,
 )
 from app.core.config import get_settings
@@ -126,6 +128,8 @@ def create_app() -> FastAPI:
     app.include_router(question_bank.router, prefix=f"{prefix}/admin/questions")
     app.include_router(staff.router, prefix=f"{prefix}/admin/staff")
     app.include_router(kiosks.router, prefix=f"{prefix}/admin/kiosks")
+    app.include_router(sessions_admin.router, prefix=f"{prefix}/admin/sessions")
+    app.include_router(audit.router, prefix=f"{prefix}/admin/audit-logs")
 
     return app
 

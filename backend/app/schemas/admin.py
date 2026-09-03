@@ -85,3 +85,14 @@ class AuditLogResponse(BaseModel):
     created_at: datetime | str
 
     model_config = {"from_attributes": True}
+
+# --- Sessions ---
+class AdminSessionResponse(BaseModel):
+    id: str
+    patient_name: str | None = None
+    token_number: str | None = None
+    status: str
+    kiosk_code: str | None = None
+    created_at: datetime | str
+
+    model_config = {"from_attributes": True}

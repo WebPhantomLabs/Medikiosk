@@ -128,7 +128,10 @@ async def test_full_patient_preconsultation_journey(client: AsyncClient):
     assert diag["diagnosis_text"] == "Acute Bacterial Pharyngitis with Pyrexia"
 
     # Verify session is now COMPLETED
-    session_check = await client.get(f"/api/v1/sessions/{session_id}")
+    session_check = await client.get(
+        f"/api/v1/sessions/{session_id}",
+        headers={"X-Session-Token": session_id}
+    )
     assert session_check.json()["status"] == "COMPLETED"
 
     # -------------------------------------------------------------------------

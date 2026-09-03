@@ -1,41 +1,46 @@
 """
-Reusable Supabase client.
+Reusable Supabase client or in-memory fallback for local development.
 
 A single async client is created lazily and cached for the lifetime of the
-process, rather than constructing a new client per repository call. The
-service-role key is used server-side only and must never be forwarded to
-the frontend or included in any API response.
+process. If Supabase credentials are not configured, an in-memory SQLite/dictionary
+backed database is used automatically so that the application runs immediately.
 """
 from __future__ import annotations
+
+from typing import Any
 
 from supabase import AsyncClient, acreate_client
 
 from app.core.config import get_settings
 from app.core.logging import get_logger
+from app.db.in_memory import InMemoryDatabase
 
 logger = get_logger(__name__)
 
-_client: AsyncClient | None = None
+_client: Any = None
 
 
 async def get_supabase_client() -> AsyncClient:
-    """FastAPI-dependency-friendly accessor for the shared Supabase client.
-
-    Creates the client on first use and reuses it thereafter. Safe to call
-    from multiple repositories/services without incurring reconnect cost.
-    """
+    """FastAPI-dependency-friendly accessor for the shared Supabase or local client."""
     global _client
     if _client is None:
         settings = get_settings()
-        if not settings.SUPABASE_URL or not settings.SUPABASE_SERVICE_ROLE_KEY:
-            logger.warning(
-                "Supabase credentials are not configured; "
-                "database-backed features will fail until SUPABASE_URL and "
-                "SUPABASE_SERVICE_ROLE_KEY are set."
-            )
-        _client = await acreate_client(
-            settings.SUPABASE_URL, settings.SUPABASE_SERVICE_ROLE_KEY
-        )
+        if (
+            settings.SUPABASE_URL
+            and settings.SUPABASE_SERVICE_ROLE_KEY
+            and not settings.SUPABASE_URL.startswith("https://example")
+        ):
+            try:
+                _client = await acreate_client(
+                    settings.SUPABASE_URL, settings.SUPABASE_SERVICE_ROLE_KEY
+                )
+                logger.info("Connected to remote Supabase database: %s", settings.SUPABASE_URL)
+            except Exception as e:
+                logger.warning("Failed to initialize Supabase client: %s. Using in-memory fallback.", str(e))
+                _client = InMemoryDatabase()
+        else:
+            logger.info("Running with seeded in-memory database for development.")
+            _client = InMemoryDatabase()
     return _client
 
 

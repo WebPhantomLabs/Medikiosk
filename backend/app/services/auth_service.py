@@ -6,6 +6,7 @@ from datetime import UTC, datetime, timedelta
 from supabase import AsyncClient
 
 from app.core.config import get_settings
+from app.core.logging import get_logger
 from app.core.exceptions import (
     AccountDisabledError,
     InvalidCredentialsError,
@@ -21,6 +22,8 @@ from app.core.security import (
 from app.repositories.audit_repository import AuditLogRepository
 from app.repositories.staff_repository import StaffRepository
 from app.schemas.auth import LoginRequest, StaffResponse, TokenResponse
+
+logger = get_logger(__name__)
 
 
 def _hash_token(token: str) -> str:
@@ -94,7 +97,7 @@ class AuthService:
 
         token_hash = _hash_token(refresh_token_str)
         rt_row_res = await self.db.table("refresh_tokens").select("*").eq("token_hash", token_hash).maybe_single().execute()
-        rt_row = rt_row_res.data if rt_row_res else None
+        rt_row = rt_row_res.data if rt_row_res and isinstance(rt_row_res.data, dict) else None
 
         if not rt_row or rt_row.get("revoked", False):
             raise NotAuthenticatedError("Refresh token is invalid or has been revoked.")
@@ -136,9 +139,15 @@ class AuthService:
     async def logout(self, refresh_token_str: str, current_user_id: str) -> bool:
         try:
             token_hash = _hash_token(refresh_token_str)
-            await self.db.table("refresh_tokens").update({"revoked": True}).eq("token_hash", token_hash).execute()
-        except Exception:
-            pass
+            rt_row_res = await self.db.table("refresh_tokens").select("*").eq("token_hash", token_hash).maybe_single().execute()
+            if rt_row_res and rt_row_res.data:
+                rt_row = rt_row_res.data
+                if str(rt_row.get("staff_id")) == str(current_user_id):
+                    await self.db.table("refresh_tokens").update({"revoked": True}).eq("id", rt_row["id"]).execute()
+                else:
+                    logger.warning("User %s attempted to revoke token belonging to staff_id %s", current_user_id, rt_row.get("staff_id"))
+        except Exception as e:
+            logger.error("Failed to revoke refresh token during logout: %s", str(e))
         return True
 
     async def get_me(self, staff_id: str) -> StaffResponse:

@@ -107,17 +107,23 @@ class IntakeService:
             next_node_id = None
 
         # 5. Persist Intake Answer
-        current_count = await self.intake_repo.count_for_session(session_id)
-        sequence = current_count + 1
+        for attempt in range(3):
+            try:
+                current_count = await self.intake_repo.count_for_session(session_id)
+                sequence = current_count + 1
 
-        await self.intake_repo.insert({
-            "session_id": session_id,
-            "node_id": current_node_id,
-            "transcript": payload.transcript,
-            "answer_category": classified_category,
-            "next_node_id": next_node_id,
-            "sequence": sequence,
-        })
+                await self.intake_repo.insert({
+                    "session_id": session_id,
+                    "node_id": current_node_id,
+                    "transcript": payload.transcript,
+                    "answer_category": classified_category,
+                    "next_node_id": next_node_id,
+                    "sequence": sequence,
+                })
+                break
+            except Exception:
+                if attempt == 2:
+                    raise
 
         # 6. Queue Token Allocation: Assigned on first successfully accepted answer
         token_row = await self.token_repo.get_by_session_id(session_id)

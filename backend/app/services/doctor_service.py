@@ -3,6 +3,7 @@ from __future__ import annotations
 from supabase import AsyncClient
 
 from app.core.exceptions import (
+    MediKioskError,
     NotFoundError,
 )
 from app.repositories.audit_repository import AuditLogRepository
@@ -60,15 +61,27 @@ class DoctorService:
         if not sessions:
             return []
 
+        session_ids = [str(s["id"]) for s in sessions]
+        patient_ids = list(set([str(s["patient_id"]) for s in sessions]))
+        kiosk_ids = list(set([str(s["kiosk_id"]) for s in sessions]))
+
+        tokens_resp = await self.db.table("queue_tokens").select("*").in_("session_id", session_ids).execute()
+        patients_resp = await self.db.table("patients").select("*").in_("id", patient_ids).execute()
+        kiosks_resp = await self.db.table("kiosks").select("*").in_("id", kiosk_ids).execute()
+
+        tokens_map = {t["session_id"]: t for t in tokens_resp.data} if tokens_resp.data else {}
+        patients_map = {p["id"]: p for p in patients_resp.data} if patients_resp.data else {}
+        kiosks_map = {k["id"]: k for k in kiosks_resp.data} if kiosks_resp.data else {}
+
         queue_items: list[QueueItemResponse] = []
         for s in sessions:
             session_id = str(s["id"])
-            token_row = await self.token_repo.get_by_session_id(session_id)
+            token_row = tokens_map.get(session_id)
             if not token_row:
                 continue
 
-            patient = await self.patient_repo.get_by_id(s["patient_id"])
-            kiosk = await self.kiosk_repo.get_by_id(s["kiosk_id"])
+            patient = patients_map.get(str(s["patient_id"]))
+            kiosk = kiosks_map.get(str(s["kiosk_id"]))
 
             queue_items.append(
                 QueueItemResponse(
@@ -76,7 +89,7 @@ class DoctorService:
                     token_number=token_row["token_number"],
                     patient_id=str(s["patient_id"]),
                     patient_name=patient["full_name"] if patient else "Unknown",
-                    patient_sex=patient["sex"] if patient else "unknown",
+                    patient_sex=patient.get("sex", "unknown") if patient else "unknown",
                     patient_dob=str(patient["date_of_birth"]) if patient and patient.get("date_of_birth") else None,
                     kiosk_id=str(s["kiosk_id"]),
                     kiosk_code=kiosk["code"] if kiosk else None,
@@ -172,6 +185,28 @@ class DoctorService:
             updated_at=session["updated_at"],
         )
 
+    async def start_consultation(self, session_id: str, doctor_id: str) -> dict:
+        """Start a doctor consultation for a session."""
+        session = await self.session_repo.get_by_id(session_id)
+        if not session:
+            raise NotFoundError(f"Session '{session_id}' not found.", code="SESSION_NOT_FOUND")
+
+        if session["status"] != "WAITING_FOR_DOCTOR":
+            raise MediKioskError("Session is not waiting for doctor.", code="INVALID_STATUS")
+
+        updated = await self.session_repo.update_status(session_id, "IN_CONSULTATION")
+
+        await self.audit_repo.insert({
+            "actor_id": doctor_id,
+            "actor_role": "DOCTOR",
+            "action": "START_CONSULTATION",
+            "resource_type": "session",
+            "resource_id": session_id,
+            "metadata": {"previous_status": session["status"]},
+        })
+
+        return updated
+
     async def record_diagnosis(
         self,
         session_id: str,
@@ -214,6 +249,9 @@ class DoctorService:
             "resource_id": session_id,
             "metadata": {"diagnosis_text": payload.diagnosis_text},
         })
+
+        if not diag_record:
+            raise MediKioskError("Failed to persist diagnosis record.")
 
         return DiagnosisResponse(
             id=str(diag_record["id"]),
