@@ -1,81 +1,132 @@
 'use client';
 
 import { Button } from '@/components/ui/button';
-import { Check } from 'lucide-react';
+import { Check, ChevronRight, CornerDownLeft } from 'lucide-react';
+import { motion } from 'framer-motion';
 
 const languages = [
-  { code: 'hi', name: 'हिंदी', nativeName: 'Hindi' },
-  { code: 'en', name: 'English', nativeName: 'English' },
-  { code: 'ta', name: 'தமிழ்', nativeName: 'Tamil' },
-  { code: 'mr', name: 'मराठी', nativeName: 'Marathi' },
-  { code: 'bn', name: 'বাংলা', nativeName: 'Bengali' },
-  { code: 'te', name: 'తెలుగు', nativeName: 'Telugu' },
+  { code: 'en', name: 'English', native: 'English' },
+  { code: 'hi', name: 'Hindi', native: 'हिन्दी' },
+  { code: 'mr', name: 'Marathi', native: 'मराठी' },
+  { code: 'bn', name: 'Bengali', native: 'বাংলা' },
+  { code: 'ta', name: 'Tamil', native: 'தமிழ்' },
+  { code: 'te', name: 'Telugu', native: 'తెలుగు' },
 ];
 
 interface LanguageSelectorProps {
   selectedLanguage: string;
   onSelectLanguage: (code: string) => void;
   onContinue: () => void;
+  onBack?: () => void;
 }
 
 export function LanguageSelector({
   selectedLanguage,
   onSelectLanguage,
   onContinue,
+  onBack,
 }: LanguageSelectorProps) {
+  
+  const containerVariants = {
+    hidden: { opacity: 0 },
+    show: {
+      opacity: 1,
+      transition: { staggerChildren: 0.05 }
+    }
+  };
+
+  const itemVariants = {
+    hidden: { opacity: 0, y: 10 },
+    show: { opacity: 1, y: 0 }
+  };
+
   return (
-    <div className="min-h-screen bg-gradient-to-br from-blue-50 to-blue-100 flex items-center justify-center p-8">
-      <div className="bg-white rounded-3xl shadow-2xl p-12 max-w-4xl w-full">
-        <div className="text-center mb-12">
-          <h2 className="text-4xl font-bold text-gray-900 mb-4">
-            Select Your Language
+    <div className="min-h-screen bg-[var(--mk-bg)] flex flex-col items-center justify-between p-12">
+      
+      {/* Top Header */}
+      <div className="w-full max-w-5xl flex justify-start opacity-70">
+        {onBack && (
+          <button 
+            onClick={onBack}
+            className="flex items-center text-[var(--mk-text-secondary)] hover:text-[var(--mk-text)] transition-colors text-lg font-medium p-4 -ml-4"
+          >
+            <CornerDownLeft className="w-6 h-6 mr-3" />
+            Back
+          </button>
+        )}
+      </div>
+
+      {/* Main Content */}
+      <div className="w-full max-w-5xl flex-1 flex flex-col items-center justify-center space-y-16">
+        <div className="text-center space-y-4">
+          <h2 className="text-5xl font-bold text-[var(--mk-text)] tracking-tight">
+            Choose your language
           </h2>
-          <p className="text-xl text-gray-600">
-            अपनी भाषा चुनें | Choose your preferred language
+          <p className="text-2xl text-[var(--mk-text-secondary)]">
+            अपनी भाषा चुनें
           </p>
         </div>
 
-        <div className="grid grid-cols-2 md:grid-cols-3 gap-6 mb-12">
-          {languages.map((lang) => (
-            <button
-              key={lang.code}
-              onClick={() => onSelectLanguage(lang.code)}
-              className={`
-                relative p-8 rounded-2xl border-4 transition-all
-                ${
-                  selectedLanguage === lang.code
-                    ? 'border-blue-600 bg-blue-50 shadow-lg scale-105'
-                    : 'border-gray-200 bg-white hover:border-gray-300 hover:shadow-md'
-                }
-              `}
-            >
-              {selectedLanguage === lang.code && (
-                <div className="absolute top-3 right-3">
-                  <div className="w-8 h-8 bg-blue-600 rounded-full flex items-center justify-center">
-                    <Check className="w-5 h-5 text-white" />
+        <motion.div 
+          className="grid grid-cols-2 lg:grid-cols-3 gap-6 w-full"
+          role="radiogroup"
+          aria-label="Select Language"
+          variants={containerVariants}
+          initial="hidden"
+          animate="show"
+        >
+          {languages.map((lang) => {
+            const isSelected = selectedLanguage === lang.code;
+            return (
+              <motion.button
+                key={lang.code}
+                variants={itemVariants}
+                role="radio"
+                aria-checked={isSelected}
+                onClick={() => onSelectLanguage(lang.code)}
+                className={`
+                  relative p-10 rounded-3xl border-2 transition-all text-center group
+                  ${
+                    isSelected
+                      ? 'border-[var(--mk-primary)] bg-blue-50 shadow-md'
+                      : 'border-[var(--mk-border)] bg-white hover:border-[var(--mk-primary)]/50 hover:bg-gray-50'
+                  }
+                `}
+              >
+                {isSelected && (
+                  <div className="absolute top-4 right-4">
+                    <div className="w-8 h-8 bg-[var(--mk-primary)] rounded-full flex items-center justify-center">
+                      <Check className="w-5 h-5 text-white" />
+                    </div>
+                  </div>
+                )}
+                <div>
+                  <div 
+                    className={`text-4xl font-bold mb-3 ${isSelected ? 'text-[var(--mk-primary)]' : 'text-gray-900 group-hover:text-[var(--mk-primary)]'}`}
+                    lang={lang.code}
+                  >
+                    {lang.native}
+                  </div>
+                  <div className={`text-xl ${isSelected ? 'text-blue-800' : 'text-gray-500'}`}>
+                    {lang.name}
                   </div>
                 </div>
-              )}
-              <div className="text-center">
-                <div className="text-3xl font-bold text-gray-900 mb-2">
-                  {lang.name}
-                </div>
-                <div className="text-lg text-gray-600">{lang.nativeName}</div>
-              </div>
-            </button>
-          ))}
-        </div>
+              </motion.button>
+            );
+          })}
+        </motion.div>
+      </div>
 
-        <div className="flex justify-center">
-          <Button
-            size="xl"
-            onClick={onContinue}
-            disabled={!selectedLanguage}
-            className="px-16 py-6 text-xl"
-          >
-            Continue / जारी रखें
-          </Button>
-        </div>
+      {/* Bottom Action */}
+      <div className="w-full max-w-5xl flex justify-center pt-12 pb-8">
+        <Button
+          size="lg"
+          onClick={onContinue}
+          disabled={!selectedLanguage}
+          className="w-full max-w-md shadow-lg"
+        >
+          Continue <ChevronRight className="w-8 h-8 ml-2" />
+        </Button>
       </div>
     </div>
   );

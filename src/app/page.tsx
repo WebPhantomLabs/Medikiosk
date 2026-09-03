@@ -7,14 +7,11 @@ import {
   Monitor,
   Stethoscope,
   ShieldCheck,
-  Activity,
   CheckCircle2,
   ArrowRight,
-  Sparkles,
-  FileText,
-  Mic,
-  Cpu,
+  Activity
 } from 'lucide-react';
+import { motion, Variants } from 'framer-motion';
 
 export default function HomePage() {
   const [backendStatus, setBackendStatus] = useState<'checking' | 'connected' | 'offline'>('checking');
@@ -28,184 +25,181 @@ export default function HomePage() {
       .catch(() => setBackendStatus('offline'));
   }, []);
 
-  return (
-    <main className="min-h-screen bg-slate-900 text-slate-100 flex flex-col justify-between">
-      {/* Navigation Bar */}
-      <header className="border-b border-slate-800 bg-slate-900/80 backdrop-blur sticky top-0 z-50">
-        <div className="max-w-7xl mx-auto px-6 py-4 flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            <div className="w-10 h-10 bg-blue-600 rounded-xl flex items-center justify-center font-bold text-xl text-white shadow-lg shadow-blue-500/30">
-              M
-            </div>
-            <div>
-              <h1 className="text-xl font-bold tracking-tight text-white">MediKiosk</h1>
-              <p className="text-xs text-slate-400">Intelligent Healthcare Intake System</p>
-            </div>
-          </div>
+  const containerVariants: Variants = {
+    hidden: { opacity: 0 },
+    show: {
+      opacity: 1,
+      transition: { staggerChildren: 0.1 }
+    }
+  };
 
-          <div className="flex items-center gap-4">
-            <div className="flex items-center gap-2 px-3 py-1.5 rounded-full bg-slate-800/80 border border-slate-700 text-xs">
-              <span
-                className={`w-2 h-2 rounded-full ${
-                  backendStatus === 'connected'
-                    ? 'bg-emerald-400 animate-pulse'
-                    : backendStatus === 'checking'
-                    ? 'bg-amber-400 animate-pulse'
-                    : 'bg-rose-400'
-                }`}
-              />
-              <span className="text-slate-300">
-                Backend API:{' '}
-                <strong className={backendStatus === 'connected' ? 'text-emerald-400' : 'text-slate-400'}>
-                  {backendStatus === 'connected' ? 'Online (Port 8000)' : backendStatus === 'checking' ? 'Connecting...' : 'Standby / Offline'}
-                </strong>
-              </span>
-            </div>
-          </div>
-        </div>
-      </header>
+  const itemVariants: Variants = {
+    hidden: { opacity: 0, y: 20 },
+    show: { opacity: 1, y: 0, transition: { type: "spring", stiffness: 300, damping: 24 } }
+  };
+
+  return (
+    <main className="min-h-screen flex flex-col justify-between" style={{ backgroundColor: 'var(--mk-bg)', color: 'var(--mk-text)' }}>
+      
+      {/* Top Header Placeholder (Empty for now to keep logo centered) */}
+      <header className="p-6 h-20" />
 
       {/* Hero Section */}
-      <div className="max-w-7xl mx-auto px-6 py-12 flex-1 flex flex-col justify-center">
-        <div className="text-center max-w-3xl mx-auto mb-16">
-          <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-blue-500/10 border border-blue-500/20 text-blue-400 text-xs font-semibold uppercase tracking-wider mb-6">
-            <Sparkles className="w-3.5 h-3.5" /> Next-Gen Patient Pre-Consultation
+      <div className="max-w-6xl mx-auto px-6 flex-1 flex flex-col items-center justify-center -mt-12">
+        
+        <motion.div 
+          initial={{ opacity: 0, scale: 0.9 }}
+          animate={{ opacity: 1, scale: 1 }}
+          transition={{ duration: 0.5, ease: "easeOut" }}
+          className="text-center mb-12"
+        >
+          <div className="inline-flex items-center justify-center gap-3 mb-6">
+            <div 
+              className="w-16 h-16 rounded-2xl flex items-center justify-center font-bold text-3xl shadow-md transform rotate-3"
+              style={{ backgroundColor: 'var(--mk-primary)', color: 'var(--mk-text-inverse)' }}
+            >
+              M
+            </div>
+            <h1 className="text-5xl font-extrabold tracking-tight" style={{ color: 'var(--mk-text)' }}>
+              MediKiosk
+            </h1>
           </div>
-          <h2 className="text-4xl sm:text-5xl font-extrabold tracking-tight text-white mb-6">
-            Seamless Kiosk Intake, AI Triage &amp; Clinical Interoperability
+          <h2 className="text-2xl sm:text-3xl font-medium tracking-tight mb-4" style={{ color: 'var(--mk-text-secondary)' }}>
+            Smart Healthcare Check-in
           </h2>
-          <p className="text-lg text-slate-300 leading-relaxed">
-            MediKiosk empowers patients with multilingual voice intake and prescription OCR, while providing doctors with instant clinical encounter aggregation and FHIR R4 document export.
+          <p className="max-w-2xl mx-auto" style={{ color: 'var(--mk-text-muted)' }}>
+            Streamlined patient intake, intelligent symptom routing, and instant clinical handover.
           </p>
-        </div>
+        </motion.div>
 
         {/* Portal Entry Cards */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-8 mb-16">
-          {/* Kiosk Interface Card */}
-          <div className="bg-slate-800/60 border border-slate-700/80 rounded-2xl p-8 hover:border-blue-500/50 hover:shadow-2xl hover:shadow-blue-500/10 transition-all duration-300 flex flex-col justify-between group">
+        <motion.div 
+          variants={containerVariants}
+          initial="hidden"
+          animate="show"
+          className="grid grid-cols-1 md:grid-cols-3 gap-8 w-full max-w-5xl"
+        >
+          {/* Patient Kiosk Card */}
+          <motion.div 
+            variants={itemVariants}
+            className="rounded-2xl p-8 flex flex-col justify-between group transition-all duration-300 hover:shadow-xl"
+            style={{ backgroundColor: 'var(--mk-surface)', border: '1px solid var(--mk-border)' }}
+          >
             <div>
-              <div className="w-14 h-14 bg-blue-500/10 rounded-2xl flex items-center justify-center mb-6 text-blue-400 group-hover:scale-110 transition-transform">
+              <div 
+                className="w-14 h-14 rounded-xl flex items-center justify-center mb-6 transition-transform group-hover:scale-110"
+                style={{ backgroundColor: 'var(--mk-accent-light)', color: 'var(--mk-accent-dark)' }}
+              >
                 <Monitor className="w-7 h-7" />
               </div>
-              <h3 className="text-2xl font-bold text-white mb-3">Patient Kiosk</h3>
-              <p className="text-slate-400 text-sm leading-relaxed mb-6">
-                Touchscreen check-in, multilingual speech recognition, AI symptom routing, and instant queue token allocation.
+              <h3 className="text-2xl font-bold mb-3" style={{ color: 'var(--mk-text)' }}>Patient Kiosk</h3>
+              <p className="text-sm leading-relaxed mb-6" style={{ color: 'var(--mk-text-secondary)' }}>
+                Touchscreen check-in, multilingual speech recognition, and instant queue token allocation for patients.
               </p>
-              <ul className="space-y-2.5 text-xs text-slate-300 mb-8">
-                <li className="flex items-center gap-2">
-                  <CheckCircle2 className="w-4 h-4 text-blue-400 shrink-0" />
-                  Unauthenticated Patient Onboarding
-                </li>
-                <li className="flex items-center gap-2">
-                  <CheckCircle2 className="w-4 h-4 text-blue-400 shrink-0" />
-                  Voice Intake &amp; Decision Tree
-                </li>
-                <li className="flex items-center gap-2">
-                  <CheckCircle2 className="w-4 h-4 text-blue-400 shrink-0" />
-                  Document Scan &amp; Medication OCR
-                </li>
+              <ul className="space-y-2 text-sm mb-8" style={{ color: 'var(--mk-text-secondary)' }}>
+                <li className="flex items-center gap-2"><CheckCircle2 className="w-4 h-4 text-green-500 shrink-0" /> Voice Intake</li>
+                <li className="flex items-center gap-2"><CheckCircle2 className="w-4 h-4 text-green-500 shrink-0" /> Document Scan</li>
               </ul>
             </div>
             <Link href="/kiosk">
-              <Button size="lg" className="w-full bg-blue-600 hover:bg-blue-500 text-white font-semibold">
+              <Button size="lg" className="w-full text-white font-semibold" style={{ backgroundColor: 'var(--mk-accent)' }}>
                 Launch Kiosk <ArrowRight className="w-4 h-4 ml-2" />
               </Button>
             </Link>
-          </div>
+          </motion.div>
 
           {/* Doctor Portal Card */}
-          <div className="bg-slate-800/60 border border-slate-700/80 rounded-2xl p-8 hover:border-teal-500/50 hover:shadow-2xl hover:shadow-teal-500/10 transition-all duration-300 flex flex-col justify-between group">
+          <motion.div 
+            variants={itemVariants}
+            className="rounded-2xl p-8 flex flex-col justify-between group transition-all duration-300 hover:shadow-xl relative overflow-hidden"
+            style={{ backgroundColor: 'var(--mk-surface)', border: '2px solid var(--mk-primary)' }}
+          >
+            <div className="absolute top-0 right-0 p-3">
+              <span className="text-xs font-bold px-2 py-1 rounded bg-teal-100 text-teal-800">Primary</span>
+            </div>
             <div>
-              <div className="w-14 h-14 bg-teal-500/10 rounded-2xl flex items-center justify-center mb-6 text-teal-400 group-hover:scale-110 transition-transform">
+              <div 
+                className="w-14 h-14 rounded-xl flex items-center justify-center mb-6 transition-transform group-hover:scale-110"
+                style={{ backgroundColor: 'var(--mk-primary-subtle)', color: 'var(--mk-primary-dark)' }}
+              >
                 <Stethoscope className="w-7 h-7" />
               </div>
-              <h3 className="text-2xl font-bold text-white mb-3">Doctor Portal</h3>
-              <p className="text-slate-400 text-sm leading-relaxed mb-6">
-                Live patient consultation queue, pre-consultation summary review, authoritative diagnosis entry, and FHIR R4 generation.
+              <h3 className="text-2xl font-bold mb-3" style={{ color: 'var(--mk-text)' }}>Doctor Portal</h3>
+              <p className="text-sm leading-relaxed mb-6" style={{ color: 'var(--mk-text-secondary)' }}>
+                Live patient queue, pre-consultation summary review, clinical diagnosis entry, and record generation.
               </p>
-              <ul className="space-y-2.5 text-xs text-slate-300 mb-8">
-                <li className="flex items-center gap-2">
-                  <CheckCircle2 className="w-4 h-4 text-teal-400 shrink-0" />
-                  Live Patient Token Queue
-                </li>
-                <li className="flex items-center gap-2">
-                  <CheckCircle2 className="w-4 h-4 text-teal-400 shrink-0" />
-                  Aggregated Symptom &amp; Rx History
-                </li>
-                <li className="flex items-center gap-2">
-                  <CheckCircle2 className="w-4 h-4 text-teal-400 shrink-0" />
-                  Clinical Diagnosis &amp; FHIR Export
-                </li>
+              <ul className="space-y-2 text-sm mb-8" style={{ color: 'var(--mk-text-secondary)' }}>
+                <li className="flex items-center gap-2"><CheckCircle2 className="w-4 h-4 text-teal-500 shrink-0" /> Live Token Queue</li>
+                <li className="flex items-center gap-2"><CheckCircle2 className="w-4 h-4 text-teal-500 shrink-0" /> AI Patient Summary</li>
               </ul>
             </div>
             <Link href="/doctor/login">
-              <Button size="lg" className="w-full bg-teal-600 hover:bg-teal-500 text-white font-semibold">
+              <Button size="lg" className="w-full text-white font-semibold shadow-md" style={{ backgroundColor: 'var(--mk-primary)' }}>
                 Doctor Sign In <ArrowRight className="w-4 h-4 ml-2" />
               </Button>
             </Link>
-          </div>
+          </motion.div>
 
-          {/* Admin Dashboard Card */}
-          <div className="bg-slate-800/60 border border-slate-700/80 rounded-2xl p-8 hover:border-indigo-500/50 hover:shadow-2xl hover:shadow-indigo-500/10 transition-all duration-300 flex flex-col justify-between group">
+          {/* Admin Panel Card */}
+          <motion.div 
+            variants={itemVariants}
+            className="rounded-2xl p-8 flex flex-col justify-between group transition-all duration-300 hover:shadow-xl"
+            style={{ backgroundColor: 'var(--mk-surface)', border: '1px solid var(--mk-border)' }}
+          >
             <div>
-              <div className="w-14 h-14 bg-indigo-500/10 rounded-2xl flex items-center justify-center mb-6 text-indigo-400 group-hover:scale-110 transition-transform">
+              <div 
+                className="w-14 h-14 rounded-xl flex items-center justify-center mb-6 transition-transform group-hover:scale-110"
+                style={{ backgroundColor: '#F3E8FF', color: '#7E22CE' }}
+              >
                 <ShieldCheck className="w-7 h-7" />
               </div>
-              <h3 className="text-2xl font-bold text-white mb-3">Admin Panel</h3>
-              <p className="text-slate-400 text-sm leading-relaxed mb-6">
-                Manage question trees, transition routing, staff accounts, kiosk hardware, system activity, and audit trails.
+              <h3 className="text-2xl font-bold mb-3" style={{ color: 'var(--mk-text)' }}>Admin Panel</h3>
+              <p className="text-sm leading-relaxed mb-6" style={{ color: 'var(--mk-text-secondary)' }}>
+                Manage question trees, transition routing, staff accounts, kiosk hardware, and system configurations.
               </p>
-              <ul className="space-y-2.5 text-xs text-slate-300 mb-8">
-                <li className="flex items-center gap-2">
-                  <CheckCircle2 className="w-4 h-4 text-indigo-400 shrink-0" />
-                  Question Bank &amp; Transitions CRUD
-                </li>
-                <li className="flex items-center gap-2">
-                  <CheckCircle2 className="w-4 h-4 text-indigo-400 shrink-0" />
-                  Staff Role-Based Access Control
-                </li>
-                <li className="flex items-center gap-2">
-                  <CheckCircle2 className="w-4 h-4 text-indigo-400 shrink-0" />
-                  Physical Kiosk Registry &amp; Audit Logs
-                </li>
+              <ul className="space-y-2 text-sm mb-8" style={{ color: 'var(--mk-text-secondary)' }}>
+                <li className="flex items-center gap-2"><CheckCircle2 className="w-4 h-4 text-purple-500 shrink-0" /> Question Bank</li>
+                <li className="flex items-center gap-2"><CheckCircle2 className="w-4 h-4 text-purple-500 shrink-0" /> Staff & Kiosks</li>
               </ul>
             </div>
             <Link href="/doctor/login">
-              <Button size="lg" className="w-full bg-indigo-600 hover:bg-indigo-500 text-white font-semibold">
-                Admin / Staff Login <ArrowRight className="w-4 h-4 ml-2" />
+              <Button size="lg" variant="outline" className="w-full font-semibold border-2" style={{ color: 'var(--mk-text)' }}>
+                Admin Login <ArrowRight className="w-4 h-4 ml-2" />
               </Button>
             </Link>
-          </div>
-        </div>
+          </motion.div>
 
-        {/* Feature Highlights Grid */}
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-4 p-6 rounded-2xl bg-slate-800/40 border border-slate-700/50 text-center">
-          <div className="p-4">
-            <Mic className="w-6 h-6 text-blue-400 mx-auto mb-2" />
-            <h4 className="text-sm font-semibold text-white">Voice &amp; AI Routing</h4>
-            <p className="text-xs text-slate-400 mt-1">Guided classification against DB decision tree</p>
-          </div>
-          <div className="p-4">
-            <FileText className="w-6 h-6 text-emerald-400 mx-auto mb-2" />
-            <h4 className="text-sm font-semibold text-white">Google Vision OCR</h4>
-            <p className="text-xs text-slate-400 mt-1">Prescription parsing &amp; medication extraction</p>
-          </div>
-          <div className="p-4">
-            <Cpu className="w-6 h-6 text-amber-400 mx-auto mb-2" />
-            <h4 className="text-sm font-semibold text-white">FHIR R4 Bundles</h4>
-            <p className="text-xs text-slate-400 mt-1">Standards-compliant interoperable health records</p>
-          </div>
-          <div className="p-4">
-            <Activity className="w-6 h-6 text-purple-400 mx-auto mb-2" />
-            <h4 className="text-sm font-semibold text-white">Atomic Queues</h4>
-            <p className="text-xs text-slate-400 mt-1">Concurrency-safe kiosk token issuance</p>
-          </div>
-        </div>
+        </motion.div>
       </div>
 
-      {/* Footer */}
-      <footer className="border-t border-slate-800 py-6 text-center text-xs text-slate-500">
-        MediKiosk System &copy; 2026. FastAPI Backend &bull; Next.js Frontend &bull; PostgreSQL &bull; FHIR R4
+      {/* Footer & Health Indicator */}
+      <footer className="py-8 px-6 flex flex-col sm:flex-row items-center justify-between border-t max-w-7xl mx-auto w-full" style={{ borderColor: 'var(--mk-border)' }}>
+        <p className="text-sm font-medium mb-4 sm:mb-0" style={{ color: 'var(--mk-text-muted)' }}>
+          &copy; {new Date().getFullYear()} MediKiosk System. All rights reserved.
+        </p>
+        
+        <div 
+          className="flex items-center gap-2 px-4 py-2 rounded-full border shadow-sm"
+          style={{ backgroundColor: 'var(--mk-surface)', borderColor: 'var(--mk-border)' }}
+        >
+          <Activity className="w-4 h-4" style={{ color: 'var(--mk-text-muted)' }} />
+          <span className="text-sm font-medium" style={{ color: 'var(--mk-text-secondary)' }}>System Status:</span>
+          <div className="flex items-center gap-2 ml-1">
+            <span
+              className={`w-2.5 h-2.5 rounded-full ${
+                backendStatus === 'connected' ? 'bg-green-500 shadow-[0_0_8px_rgba(34,197,94,0.5)] animate-pulse' :
+                backendStatus === 'checking' ? 'bg-yellow-400 animate-pulse' : 'bg-red-500'
+              }`}
+            />
+            <span className="text-sm font-bold" style={{ 
+              color: backendStatus === 'connected' ? 'var(--mk-success)' :
+                     backendStatus === 'checking' ? 'var(--mk-warning)' : 'var(--mk-error)'
+            }}>
+              {backendStatus === 'connected' ? 'Operational' : 
+               backendStatus === 'checking' ? 'Checking...' : 'Offline'}
+            </span>
+          </div>
+        </div>
       </footer>
     </main>
   );

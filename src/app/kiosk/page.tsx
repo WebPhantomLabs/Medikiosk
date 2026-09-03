@@ -11,6 +11,8 @@ import { SettingsModal } from '@/components/kiosk/setting-modal';
 import { SupportModal } from '@/components/kiosk/support-modal';
 import { useKioskStore } from '@/store/kiosk-store';
 import { sessions, intake, documents } from '@/lib/api-client';
+import { motion, AnimatePresence } from 'framer-motion';
+import { AlertCircle, X } from 'lucide-react';
 
 type KioskStep = 'idle' | 'language' | 'demographics' | 'intake' | 'documents' | 'token';
 
@@ -158,8 +160,6 @@ export default function KioskPage() {
         }
       }
       
-      // Combine previous final transcripts with current (if we want continuous updates)
-      // For simplicity here, we can just set what comes back.
       setCurrentTranscript(finalTranscript || interimTranscript);
     };
 
@@ -184,7 +184,7 @@ export default function KioskPage() {
     }
   };
 
-  const handleSubmitAnswer = async () => {
+  const handleSubmitAnswer = async (finalTranscript?: string) => {
     if (!sessionId || !currentNodeId) return;
     
     if (recognitionRef.current) {
@@ -198,7 +198,7 @@ export default function KioskPage() {
       const res = await intake.submitAnswer({
         session_id: sessionId,
         node_id: currentNodeId,
-        transcript: currentTranscript || 'General symptoms',
+        transcript: finalTranscript || currentTranscript || 'General symptoms',
       });
       const data = res.data;
 
@@ -256,67 +256,92 @@ export default function KioskPage() {
 
   return (
     <>
-      {apiError && (
-        <div className="fixed top-4 right-4 z-50 bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded relative">
-          <span className="block sm:inline">{apiError}</span>
-          <button className="absolute top-0 bottom-0 right-0 px-4 py-3" onClick={() => setApiError(null)}>
-            <span className="sr-only">Close</span>
-            &times;
-          </button>
-        </div>
-      )}
+      <AnimatePresence>
+        {apiError && (
+          <motion.div 
+            initial={{ opacity: 0, y: -50 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -50 }}
+            role="alert"
+            className="fixed top-8 left-1/2 -translate-x-1/2 z-50 bg-red-50 border-2 border-red-500 text-red-900 px-6 py-4 rounded-2xl shadow-2xl flex items-center gap-4 max-w-xl w-full"
+          >
+            <AlertCircle className="w-8 h-8 text-red-500 flex-shrink-0" />
+            <span className="block sm:inline text-xl font-medium">{apiError}</span>
+            <button 
+              className="ml-auto p-2 hover:bg-red-100 rounded-full transition-colors"
+              onClick={() => setApiError(null)}
+              aria-label="Close error message"
+            >
+              <X className="w-6 h-6 text-red-500" />
+            </button>
+          </motion.div>
+        )}
+      </AnimatePresence>
 
-      {step === 'idle' && (
-        <IdleScreen
-          onStart={handleStart}
-          onSettings={() => setIsSettingsOpen(true)}
-          onSupport={() => setIsSupportOpen(true)}
-        />
-      )}
+      <div className="relative overflow-hidden w-full h-full min-h-screen">
+        <AnimatePresence mode="wait">
+          <motion.div
+            key={step}
+            initial={{ opacity: 0, x: 20 }}
+            animate={{ opacity: 1, x: 0 }}
+            exit={{ opacity: 0, x: -20 }}
+            transition={{ duration: 0.3 }}
+            className="w-full h-full absolute inset-0"
+          >
+            {step === 'idle' && (
+              <IdleScreen
+                onStart={handleStart}
+                onSettings={() => setIsSettingsOpen(true)}
+                onSupport={() => setIsSupportOpen(true)}
+              />
+            )}
 
-      {step === 'language' && (
-        <LanguageSelector
-          selectedLanguage={settings.language}
-          onSelectLanguage={handleSelectLanguage}
-          onContinue={handleLanguageContinue}
-        />
-      )}
-      
-      {step === 'demographics' && (
-        <DemographicsForm
-          onContinue={handleDemographicsContinue}
-          onBack={() => setStep('language')}
-          isProcessing={isCreatingSession}
-        />
-      )}
+            {step === 'language' && (
+              <LanguageSelector
+                selectedLanguage={settings.language}
+                onSelectLanguage={handleSelectLanguage}
+                onContinue={handleLanguageContinue}
+              />
+            )}
+            
+            {step === 'demographics' && (
+              <DemographicsForm
+                onContinue={handleDemographicsContinue}
+                onBack={() => setStep('language')}
+                isProcessing={isCreatingSession}
+              />
+            )}
 
-      {step === 'intake' && (
-        <VoiceIntake
-          question={currentQuestion || 'Please describe your symptoms'}
-          transcript={currentTranscript || ''}
-          isListening={isListening}
-          progressPercent={progressPercent}
-          onToggleListening={handleToggleListening}
-          onRepeat={() => speakQuestion(currentQuestion || 'Please describe your symptoms')}
-          onBack={() => setStep('demographics')}
-          onSubmit={handleSubmitAnswer}
-        />
-      )}
+            {step === 'intake' && (
+              <VoiceIntake
+                key={currentNodeId || 'intake'}
+                question={currentQuestion || 'Please describe your symptoms'}
+                transcript={currentTranscript || ''}
+                isListening={isListening}
+                progressPercent={progressPercent}
+                onToggleListening={handleToggleListening}
+                onBack={() => setStep('demographics')}
+                onSubmit={handleSubmitAnswer}
+              />
+            )}
 
-      {step === 'documents' && (
-        <DocumentCapture
-          onCapture={handleDocumentCapture}
-          onSkip={handleSkipDocuments}
-          isProcessing={isUploadingDoc}
-        />
-      )}
+            {step === 'documents' && (
+              <DocumentCapture
+                onCapture={handleDocumentCapture}
+                onSkip={handleSkipDocuments}
+                isProcessing={isUploadingDoc}
+              />
+            )}
 
-      {step === 'token' && (
-        <TokenDisplay
-          tokenNumber={tokenNumber || 'Unknown'}
-          onComplete={handleComplete}
-        />
-      )}
+            {step === 'token' && (
+              <TokenDisplay
+                tokenNumber={tokenNumber || 'Unknown'}
+                onComplete={handleComplete}
+              />
+            )}
+          </motion.div>
+        </AnimatePresence>
+      </div>
 
       <SettingsModal
         isOpen={isSettingsOpen}

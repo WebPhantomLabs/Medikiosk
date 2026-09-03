@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
-import { Edit, Save, FileText, Pill, Stethoscope, Activity, X } from 'lucide-react';
+import { Edit, Save, FileText, Pill, Stethoscope, Activity, X, AlertTriangle } from 'lucide-react';
 import { doctor } from '@/lib/api-client';
 
 interface IntakeAnswerHistory {
@@ -52,26 +52,29 @@ interface PatientSummaryProps {
 
 export function PatientSummary({ tokenNumber, onClose, onSignOff }: PatientSummaryProps) {
   const [patientData, setPatientData] = useState<PatientData | null>(null);
-  const [activeTab, setActiveTab] = useState<'overview' | 'history' | 'ayurveda' | 'meds' | 'documents' | 'prescription'>('overview');
   const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
   const [diagnosis, setDiagnosis] = useState('');
   const [prescription, setPrescription] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [showConfirm, setShowConfirm] = useState(false);
 
   useEffect(() => {
+    const fetchPatientData = async () => {
+      try {
+        setError(null);
+        const response = await doctor.getPatient(tokenNumber);
+        setPatientData(response.data);
+      } catch (err: any) {
+        console.error('Failed to fetch patient data:', err);
+        setError('Failed to load patient record.');
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
     fetchPatientData();
   }, [tokenNumber]);
-
-  const fetchPatientData = async () => {
-    try {
-      const response = await doctor.getPatient(tokenNumber);
-      setPatientData(response.data);
-    } catch (error) {
-      console.error('Failed to fetch patient data:', error);
-    } finally {
-      setIsLoading(false);
-    }
-  };
 
   const handleSignOff = async () => {
     setIsSubmitting(true);
@@ -82,6 +85,7 @@ export function PatientSummary({ tokenNumber, onClose, onSignOff }: PatientSumma
       }
     } catch (error) {
       console.error('Failed to sign off:', error);
+      alert('Failed to save record. Please try again.');
     } finally {
       setIsSubmitting(false);
     }
@@ -89,241 +93,230 @@ export function PatientSummary({ tokenNumber, onClose, onSignOff }: PatientSumma
 
   if (isLoading) {
     return (
-      <div className="flex items-center justify-center h-screen">
-        <div className="w-16 h-16 border-4 border-blue-600 border-t-transparent rounded-full animate-spin" />
-      </div>
-    );
-  }
-
-  if (!patientData) {
-    return (
-      <div className="flex items-center justify-center h-screen">
-        <div className="text-center">
-          <h2 className="text-2xl font-bold text-gray-900 mb-2">Patient not found</h2>
-          <Button onClick={onClose}>Go Back</Button>
+      <div className="flex flex-col h-[100dvh] bg-[var(--mk-bg)]">
+        <div className="bg-[var(--mk-surface)] border-b border-[var(--mk-border)] p-6 shadow-sm animate-mk-shimmer h-24" />
+        <div className="flex-1 p-6 space-y-6 overflow-hidden">
+          <div className="h-64 bg-[var(--mk-surface)] rounded-xl animate-mk-shimmer" />
+          <div className="h-64 bg-[var(--mk-surface)] rounded-xl animate-mk-shimmer" />
         </div>
       </div>
     );
   }
 
-  const tabs = [
-    { id: 'overview', label: 'Overview', icon: Stethoscope },
-    { id: 'history', label: 'History', icon: Activity },
-    { id: 'ayurveda', label: 'Ayurveda', icon: Activity },
-    { id: 'meds', label: 'Medications', icon: Pill },
-    { id: 'documents', label: 'Documents', icon: FileText },
-    { id: 'prescription', label: 'Prescription', icon: Edit },
-  ];
+  if (error || !patientData) {
+    return (
+      <div className="flex flex-col h-[100dvh] items-center justify-center p-6 bg-[var(--mk-bg)]">
+        <div className="text-center bg-[var(--mk-surface)] p-8 rounded-2xl shadow-sm border border-[var(--mk-border)] max-w-md w-full">
+          <AlertTriangle className="w-12 h-12 mx-auto mb-4 text-red-500" />
+          <h2 className="text-2xl font-bold mb-2 text-[var(--mk-text)]">Error Loading Record</h2>
+          <p className="mb-6 text-[var(--mk-text-secondary)]">{error || 'Patient not found'}</p>
+          <Button onClick={onClose} className="w-full" variant="outline">Return to Dashboard</Button>
+        </div>
+      </div>
+    );
+  }
+
+  const age = patientData.patient.date_of_birth 
+    ? Math.abs(new Date(new Date().getTime() - new Date(patientData.patient.date_of_birth).getTime()).getUTCFullYear() - 1970)
+    : null;
+
+  const generalHistory = patientData.intake_history.filter((i: any) => i.answer_category === 'general');
+  const ayurvedaHistory = patientData.intake_history.filter((i: any) => i.answer_category === 'ayurveda');
+  const allMeds = patientData.documents.flatMap((doc: any) => doc.medications || []);
 
   return (
-    <div className="min-h-screen bg-gray-50">
-      {/* Header */}
-      <div className="bg-white border-b sticky top-0 z-10">
-        <div className="max-w-7xl mx-auto px-6 py-4">
-          <div className="flex items-center justify-between">
+    <div className="flex flex-col h-[100dvh] bg-[var(--mk-bg)]">
+      <header className="flex-shrink-0 bg-[var(--mk-surface)] border-b border-[var(--mk-border)] z-10">
+        <div className="max-w-5xl mx-auto px-6 py-4 flex items-center justify-between">
+          <div className="flex items-center gap-4">
+            <Button variant="ghost" size="icon" onClick={onClose} className="mr-2" aria-label="Go back">
+              <X className="w-6 h-6 text-[var(--mk-text-secondary)]" />
+            </Button>
             <div>
-              <div className="flex items-center gap-4">
-                <h1 className="text-3xl font-bold text-gray-900">
-                  Token: {patientData.token_number}
+              <div className="flex items-center gap-3">
+                <span className="font-mono text-lg font-bold px-2 py-0.5 rounded bg-[var(--mk-surface-muted)] text-[var(--mk-text)]">
+                  {patientData.token_number}
+                </span>
+                <h1 className="text-xl font-bold text-[var(--mk-text)] truncate max-w-[200px] sm:max-w-md">
+                  {patientData.patient.full_name}
                 </h1>
               </div>
-              <p className="text-gray-600 mt-1">
-                {patientData.patient.full_name}
-                {patientData.patient.date_of_birth && ` • ${Math.abs(new Date(Date.now() - new Date(patientData.patient.date_of_birth).getTime()).getUTCFullYear() - 1970)} years`}
-                {patientData.patient.sex && ` • ${patientData.patient.sex}`}
+              <div className="flex flex-wrap items-center gap-2 text-sm text-[var(--mk-text-secondary)] mt-1">
+                {age !== null && <span>{age} yrs</span>}
+                {age !== null && patientData.patient.sex && <span>•</span>}
+                {patientData.patient.sex && <span className="capitalize">{patientData.patient.sex}</span>}
+                {patientData.patient.phone && <span>•</span>}
+                {patientData.patient.phone && <span>{patientData.patient.phone}</span>}
+              </div>
+            </div>
+          </div>
+        </div>
+      </header>
+
+      <main className="flex-1 min-h-0 overflow-y-auto p-6 md:p-8">
+        <div className="max-w-3xl mx-auto space-y-12 pb-24">
+          <section>
+            <h2 className="text-sm font-bold text-[var(--mk-text-secondary)] uppercase tracking-wider mb-4 flex items-center">
+              <Stethoscope className="w-4 h-4 mr-2" /> Reason for Visit
+            </h2>
+            <div className="bg-blue-50/50 rounded-2xl p-6 border border-blue-100">
+              <p className="text-xl text-[var(--mk-text)] leading-relaxed font-medium">
+                &quot;{generalHistory[0]?.transcript || 'Not provided'}&quot;
               </p>
             </div>
+          </section>
 
-            <div className="flex gap-3">
-              <Button variant="outline" onClick={onClose}>
-                <X className="w-5 h-5 mr-2" />
-                Close
-              </Button>
-              <Button onClick={handleSignOff} disabled={isSubmitting || !diagnosis}>
-                <Save className="w-5 h-5 mr-2" />
-                {isSubmitting ? 'Saving...' : 'Sign & Generate Record'}
-              </Button>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      {/* Tabs */}
-      <div className="bg-white border-b">
-        <div className="max-w-7xl mx-auto px-6">
-          <div className="flex gap-1">
-            {tabs.map((tab) => {
-              const Icon = tab.icon;
-              return (
-                <button
-                  key={tab.id}
-                  onClick={() => setActiveTab(tab.id as any)}
-                  className={`
-                    flex items-center gap-2 px-6 py-4 font-medium transition-all
-                    ${
-                      activeTab === tab.id
-                        ? 'text-blue-600 border-b-2 border-blue-600'
-                        : 'text-gray-600 hover:text-gray-900'
-                    }
-                  `}
-                >
-                  <Icon className="w-5 h-5" />
-                  {tab.label}
-                </button>
-              );
-            })}
-          </div>
-        </div>
-      </div>
-
-      {/* Content */}
-      <div className="max-w-7xl mx-auto px-6 py-8">
-        {activeTab === 'overview' && (
-          <div className="bg-white rounded-xl shadow p-6 space-y-6">
-            <div>
-              <h3 className="text-sm font-semibold text-gray-500 uppercase mb-2">Chief Complaint</h3>
-              <p className="text-xl text-gray-900">{patientData.intake_history[0]?.transcript || 'Not provided'}</p>
-            </div>
-
-            <div className="grid grid-cols-2 gap-6">
-              <div>
-                <h3 className="text-sm font-semibold text-gray-500 uppercase mb-2">Demographics</h3>
-                <div className="space-y-2 text-gray-900">
-                  <p>Name: {patientData.patient.full_name}</p>
-                  {patientData.patient.date_of_birth && <p>Age: {Math.abs(new Date(Date.now() - new Date(patientData.patient.date_of_birth).getTime()).getUTCFullYear() - 1970)} years</p>}
-                  {patientData.patient.sex && <p>Sex: {patientData.patient.sex}</p>}
-                  {patientData.patient.phone && <p>Phone: {patientData.patient.phone}</p>}
-                </div>
-              </div>
-
-              <div>
-                <h3 className="text-sm font-semibold text-gray-500 uppercase mb-2">Visit Info</h3>
-                <div className="space-y-2 text-gray-900">
-                  <p>Token: {patientData.token_number}</p>
-                </div>
-              </div>
-            </div>
-          </div>
-        )}
-
-        {activeTab === 'history' && (
-          <div className="bg-white rounded-xl shadow p-6">
-            <h3 className="text-xl font-bold text-gray-900 mb-4">History of Present Illness</h3>
-            {patientData.intake_history.filter((i: any) => i.answer_category !== 'ayurveda').length > 0 ? (
-              <div className="space-y-4">
-                {patientData.intake_history.filter((i: any) => i.answer_category !== 'ayurveda').map((item: any, index: number) => (
-                  <div key={index} className="border-l-4 border-blue-500 pl-4">
-                    <h4 className="font-semibold text-gray-900">{item.question_text}</h4>
-                    <p className="text-gray-700 mt-1">{item.transcript}</p>
+          {generalHistory.length > 1 && (
+            <section>
+              <h2 className="text-sm font-bold text-[var(--mk-text-secondary)] uppercase tracking-wider mb-4 flex items-center">
+                <Activity className="w-4 h-4 mr-2" /> Medical History & Symptoms
+              </h2>
+              <div className="space-y-6">
+                {generalHistory.slice(1).map((item: any, index: number) => (
+                  <div key={index} className="pl-4 border-l-2 border-[var(--mk-border-strong)]">
+                    <h3 className="text-sm font-semibold text-[var(--mk-text-secondary)] mb-1">{item.question_text}</h3>
+                    <p className="text-lg text-[var(--mk-text)] break-words">{item.transcript}</p>
                   </div>
                 ))}
               </div>
-            ) : (
-              <p className="text-gray-500">No history recorded</p>
-            )}
-          </div>
-        )}
+            </section>
+          )}
 
-        {activeTab === 'ayurveda' && (
-          <div className="bg-white rounded-xl shadow p-6">
-            <h3 className="text-xl font-bold text-gray-900 mb-4">Ayurvedic Assessment</h3>
-            {patientData.intake_history.filter((i: any) => i.answer_category === 'ayurveda').length > 0 ? (
-              <div className="space-y-4">
-                {patientData.intake_history.filter((i: any) => i.answer_category === 'ayurveda').map((item: any, index: number) => (
-                  <div key={index} className="border-l-4 border-green-500 pl-4">
-                    <h4 className="font-semibold text-gray-900">{item.question_text}</h4>
-                    <p className="text-gray-700 mt-1">{item.transcript}</p>
+          {ayurvedaHistory.length > 0 && (
+            <section>
+              <h2 className="text-sm font-bold text-[var(--mk-text-secondary)] uppercase tracking-wider mb-4 flex items-center">
+                <Activity className="w-4 h-4 mr-2" /> Ayurveda Assessment
+              </h2>
+              <div className="space-y-6">
+                {ayurvedaHistory.map((item: any, index: number) => (
+                  <div key={index} className="pl-4 border-l-2 border-green-500">
+                    <h3 className="text-sm font-semibold text-[var(--mk-text-secondary)] mb-1">{item.question_text}</h3>
+                    <p className="text-lg text-[var(--mk-text)] break-words">{item.transcript}</p>
                   </div>
                 ))}
               </div>
-            ) : (
-              <p className="text-gray-500">No ayurvedic assessment</p>
-            )}
-          </div>
-        )}
+            </section>
+          )}
 
-        {activeTab === 'meds' && (
-          <div className="bg-white rounded-xl shadow p-6">
-            <h3 className="text-xl font-bold text-gray-900 mb-4">Current Medications</h3>
-            {(() => {
-              const allMeds = patientData.documents.flatMap((doc: any) => doc.medications || []);
-              return allMeds.length > 0 ? (
-                <div className="overflow-x-auto">
-                  <table className="w-full">
-                    <thead className="bg-gray-50">
-                      <tr>
-                        <th className="px-4 py-3 text-left text-sm font-semibold text-gray-700">Medication</th>
-                        <th className="px-4 py-3 text-left text-sm font-semibold text-gray-700">Dose</th>
-                        <th className="px-4 py-3 text-left text-sm font-semibold text-gray-700">Frequency</th>
-                        <th className="px-4 py-3 text-left text-sm font-semibold text-gray-700">Duration</th>
+          <section>
+            <h2 className="text-sm font-bold text-[var(--mk-text-secondary)] uppercase tracking-wider mb-4 flex items-center">
+              <Pill className="w-4 h-4 mr-2" /> Extracted Medications
+            </h2>
+            {allMeds.length > 0 ? (
+              <div className="bg-white rounded-xl border border-[var(--mk-border)] overflow-x-auto">
+                <table className="w-full text-left border-collapse min-w-[500px]">
+                  <thead className="bg-[var(--mk-surface-muted)] text-[var(--mk-text-secondary)] text-sm">
+                    <tr>
+                      <th className="px-6 py-3 font-medium">Medication</th>
+                      <th className="px-6 py-3 font-medium">Dose</th>
+                      <th className="px-6 py-3 font-medium">Frequency</th>
+                      <th className="px-6 py-3 font-medium">Duration</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-[var(--mk-border)]">
+                    {allMeds.map((med: any, index: number) => (
+                      <tr key={index}>
+                        <td className="px-6 py-4 font-medium text-[var(--mk-text)] whitespace-normal break-words">{med.name}</td>
+                        <td className="px-6 py-4 text-[var(--mk-text-secondary)]">{med.dose || '-'}</td>
+                        <td className="px-6 py-4 text-[var(--mk-text-secondary)]">{med.frequency || '-'}</td>
+                        <td className="px-6 py-4 text-[var(--mk-text-secondary)]">{med.duration || '-'}</td>
                       </tr>
-                    </thead>
-                    <tbody className="divide-y">
-                      {allMeds.map((med: any, index: number) => (
-                        <tr key={index}>
-                          <td className="px-4 py-3 text-gray-900">{med.name}</td>
-                          <td className="px-4 py-3 text-gray-700">{med.dose || '—'}</td>
-                          <td className="px-4 py-3 text-gray-700">{med.frequency || '—'}</td>
-                          <td className="px-4 py-3 text-gray-700">{med.duration || '—'}</td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
-              ) : (
-                <p className="text-gray-500">No medications recorded</p>
-              );
-            })()}
-          </div>
-        )}
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            ) : (
+              <p className="text-[var(--mk-text-muted)] italic">No medications extracted from documents.</p>
+            )}
+          </section>
 
-        {activeTab === 'documents' && (
-          <div className="bg-white rounded-xl shadow p-6">
-            <h3 className="text-xl font-bold text-gray-900 mb-4">Documents</h3>
-            {patientData.documents.length > 0 ? (
+          {patientData.documents.length > 0 && (
+            <section>
+              <h2 className="text-sm font-bold text-[var(--mk-text-secondary)] uppercase tracking-wider mb-4 flex items-center">
+                <FileText className="w-4 h-4 mr-2" /> Patient Documents
+              </h2>
               <div className="space-y-4">
                 {patientData.documents.map((doc: any, index: number) => (
-                  <div key={index} className="border p-4 rounded-lg">
-                    <h4 className="font-semibold text-gray-900">{doc.file_name}</h4>
-                    <p className="text-sm text-gray-500 mb-2">Status: {doc.status}</p>
-                    {doc.ocr_text && (
-                      <div className="bg-gray-50 p-3 rounded text-sm text-gray-700 whitespace-pre-wrap">
+                  <div key={index} className="bg-white rounded-xl border border-[var(--mk-border)] p-4">
+                    <div className="flex items-center justify-between mb-4">
+                      <div className="flex items-center gap-2 overflow-hidden">
+                        <FileText className="w-5 h-5 text-[var(--mk-text-muted)] flex-shrink-0" />
+                        <h4 className="font-semibold text-[var(--mk-text)] truncate">{doc.file_name}</h4>
+                      </div>
+                      <span className="text-xs font-semibold px-2 py-1 rounded bg-[var(--mk-surface-muted)] text-[var(--mk-text-secondary)] flex-shrink-0">
+                        {doc.status}
+                      </span>
+                    </div>
+                    {doc.ocr_text ? (
+                      <div className="bg-[var(--mk-bg)] p-4 rounded-lg text-sm text-[var(--mk-text-secondary)] whitespace-pre-wrap font-mono overflow-wrap-anywhere break-words">
                         {doc.ocr_text}
                       </div>
+                    ) : (
+                      <p className="text-[var(--mk-text-muted)] italic text-sm">No text extracted.</p>
                     )}
                   </div>
                 ))}
               </div>
+            </section>
+          )}
+
+          <section className="pt-8 border-t border-[var(--mk-border-strong)]">
+            <h2 className="text-xl font-bold text-[var(--mk-text)] mb-6 flex items-center">
+              <Edit className="w-5 h-5 mr-2 text-[var(--mk-primary)]" /> Clinical Notes & Prescription
+            </h2>
+            
+            <div className="space-y-6">
+              <div>
+                <label htmlFor="diagnosis" className="block text-sm font-bold text-[var(--mk-text-secondary)] mb-2">Diagnosis (Required)</label>
+                <textarea
+                  id="diagnosis"
+                  value={diagnosis}
+                  onChange={(e) => setDiagnosis(e.target.value)}
+                  placeholder="Enter confirmed diagnosis..."
+                  className="w-full min-h-[100px] p-4 bg-white border border-[var(--mk-border-strong)] rounded-xl focus:border-[var(--mk-primary)] focus:ring-1 focus:ring-[var(--mk-primary)] outline-none resize-y"
+                  required
+                />
+              </div>
+
+              <div>
+                <label htmlFor="prescription" className="block text-sm font-bold text-[var(--mk-text-secondary)] mb-2">Treatment Plan & Prescription</label>
+                <textarea
+                  id="prescription"
+                  value={prescription}
+                  onChange={(e) => setPrescription(e.target.value)}
+                  placeholder="Rx:&#10;1.&#10;2.&#10;&#10;Advise:"
+                  className="w-full min-h-[200px] p-4 bg-white border border-[var(--mk-border-strong)] rounded-xl focus:border-[var(--mk-primary)] focus:ring-1 focus:ring-[var(--mk-primary)] outline-none resize-y font-mono text-sm"
+                />
+              </div>
+            </div>
+          </section>
+        </div>
+      </main>
+
+      <footer className="flex-shrink-0 bg-[var(--mk-surface)] border-t border-[var(--mk-border)] p-4 sm:p-6 z-20">
+        <div className="max-w-3xl mx-auto flex flex-col sm:flex-row items-center justify-between gap-4">
+          <div className="flex items-center gap-2 text-sm text-[var(--mk-text-secondary)]">
+            <AlertTriangle className="w-4 h-4 text-amber-500" />
+            Signing off will lock this record.
+          </div>
+          
+          <div className="flex items-center gap-3 w-full sm:w-auto">
+            {showConfirm ? (
+              <>
+                <Button variant="outline" onClick={() => setShowConfirm(false)} className="flex-1 sm:flex-none">Cancel</Button>
+                <Button className="flex-1 sm:flex-none bg-red-600 hover:bg-red-700 text-white" onClick={handleSignOff} disabled={isSubmitting}>
+                  {isSubmitting ? 'Saving...' : 'Confirm Sign Off'}
+                </Button>
+              </>
             ) : (
-              <p className="text-gray-500">No documents uploaded</p>
+              <Button size="lg" className="w-full sm:w-auto bg-[var(--mk-primary)]" onClick={() => setShowConfirm(true)} disabled={!diagnosis.trim()}>
+                <Save className="w-5 h-5 mr-2" />
+                Sign & Lock Record
+              </Button>
             )}
           </div>
-        )}
-
-        {activeTab === 'prescription' && (
-          <div className="space-y-6">
-            <div className="bg-white rounded-xl shadow p-6">
-              <h3 className="text-xl font-bold text-gray-900 mb-4">Diagnosis</h3>
-              <textarea
-                value={diagnosis}
-                onChange={(e) => setDiagnosis(e.target.value)}
-                placeholder="Enter diagnosis..."
-                className="w-full h-32 px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none"
-              />
-            </div>
-
-            <div className="bg-white rounded-xl shadow p-6">
-              <h3 className="text-xl font-bold text-gray-900 mb-4">Prescription & Notes</h3>
-              <textarea
-                value={prescription}
-                onChange={(e) => setPrescription(e.target.value)}
-                placeholder="Enter prescription and treatment notes..."
-                className="w-full h-64 px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none font-mono text-sm"
-              />
-            </div>
-          </div>
-        )}
-      </div>
+        </div>
+      </footer>
     </div>
   );
 }

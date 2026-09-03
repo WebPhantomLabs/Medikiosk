@@ -2,8 +2,9 @@
 
 import { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
-import { Mic, MicOff, RotateCcw, ArrowLeft } from 'lucide-react';
+import { Mic, MicOff, Keyboard, ChevronRight, CornerDownLeft } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { motion, AnimatePresence } from 'framer-motion';
 
 interface VoiceIntakeProps {
   question: string;
@@ -11,9 +12,8 @@ interface VoiceIntakeProps {
   isListening: boolean;
   progressPercent: number;
   onToggleListening: () => void;
-  onRepeat: () => void;
   onBack: () => void;
-  onSubmit: () => void;
+  onSubmit: (transcript: string) => void;
 }
 
 export function VoiceIntake({
@@ -22,109 +22,143 @@ export function VoiceIntake({
   isListening,
   progressPercent,
   onToggleListening,
-  onRepeat,
-  onBack,
   onSubmit,
+  onBack,
 }: VoiceIntakeProps) {
-  const [pulseAnimation, setPulseAnimation] = useState(false);
+  const [fallbackInput, setFallbackInput] = useState(false);
+  const [typedTranscript, setTypedTranscript] = useState('');
 
-  useEffect(() => {
-    if (isListening) {
-      setPulseAnimation(true);
-    } else {
-      setPulseAnimation(false);
-    }
-  }, [isListening]);
+  // Use typed input if fallback is active, otherwise use the voice transcript
+  const activeTranscript = fallbackInput ? typedTranscript : transcript;
+  
+  // Initialize typed input when switching to fallback mode
+  const handleEnableTyping = () => {
+    setTypedTranscript(transcript);
+    setFallbackInput(true);
+  };
+
+  const handleContinue = () => {
+    // If we're typing, we should arguably pass the typed text back up, but the parent
+    // likely expects `transcript` to be updated. Wait, `onSubmit` doesn't take arguments in `VoiceIntakeProps`!
+    // We should call `onSubmit` directly. The parent manages state. Wait, if `fallbackInput` modifies state, 
+    // it's not being synced to parent. The parent only knows about `transcript`. 
+    // Let's pass the active transcript back up if there's a callback, else we have to update the prop signature.
+    // For now, assume the parent just reads the global state or we just fire onSubmit.
+    onSubmit(activeTranscript);
+  };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-blue-50 to-blue-100 flex flex-col p-8">
-      {/* Progress Bar */}
-      <div className="mb-8">
-        <div className="flex items-center justify-between mb-2">
-          <span className="text-sm font-medium text-gray-600">Progress</span>
-          <span className="text-sm font-medium text-gray-600">
-            {progressPercent}%
-          </span>
-        </div>
-        <div className="w-full h-3 bg-white rounded-full overflow-hidden shadow-inner">
-          <div
-            className="h-full bg-gradient-to-r from-blue-500 to-blue-600 transition-all duration-500 ease-out"
-            style={{ width: `${progressPercent}%` }}
-          />
+    <div className="flex flex-col h-[100dvh] bg-[var(--mk-bg)]">
+      
+      {/* Top Header / Progress */}
+      <div className="flex-shrink-0 w-full flex items-center justify-between px-6 py-4 border-b border-[var(--mk-border)] bg-[var(--mk-bg)] z-10">
+        <button 
+          onClick={onBack}
+          className="flex items-center text-[var(--mk-text-secondary)] hover:text-[var(--mk-text)] transition-colors text-lg font-medium p-2"
+        >
+          <CornerDownLeft className="w-5 h-5 mr-2" />
+          Back
+        </button>
+        <div className="text-xl font-medium tracking-wide text-[var(--mk-text-secondary)] pr-4">
+          Question {Math.round(progressPercent / 10) || 1}
         </div>
       </div>
 
-      {/* Main Content */}
-      <div className="flex-1 flex flex-col items-center justify-center space-y-12">
-        {/* Question Display */}
-        <div className="bg-white rounded-3xl shadow-xl p-12 max-w-3xl w-full">
-          <div className="text-blue-600 text-sm font-semibold uppercase tracking-wide mb-4 text-center">
-            AI Assistant Asks
-          </div>
-          <h2 className="text-3xl font-bold text-gray-900 text-center leading-relaxed">
-            {question}
-          </h2>
-        </div>
+      {/* Main Question Area - Scrollable */}
+      <div className="flex-1 min-h-0 overflow-y-auto w-full flex flex-col items-center justify-start py-8 px-6 space-y-12">
+        <h2 className="text-4xl md:text-5xl font-bold text-[var(--mk-text)] text-center leading-tight tracking-tight max-w-4xl">
+          {question}
+        </h2>
 
-        {/* Microphone Button */}
-        <div className="relative">
+        {/* Unified Microphone / AI Indicator */}
+        <div className="relative flex flex-col items-center justify-center space-y-4">
           <button
             onClick={onToggleListening}
+            aria-pressed={isListening}
             className={cn(
-              'w-32 h-32 rounded-full transition-all duration-300 flex items-center justify-center shadow-2xl',
+              'w-24 h-24 rounded-full transition-all duration-300 flex items-center justify-center shadow-md relative z-20',
               isListening
-                ? 'bg-red-500 hover:bg-red-600 scale-110'
-                : 'bg-blue-600 hover:bg-blue-700'
+                ? 'bg-red-500 scale-105'
+                : 'bg-[var(--mk-primary)] hover:scale-105 hover:shadow-lg'
             )}
           >
             {isListening ? (
-              <MicOff className="w-16 h-16 text-white" />
+              <MicOff className="w-10 h-10 text-white" />
             ) : (
-              <Mic className="w-16 h-16 text-white" />
+              <Mic className="w-10 h-10 text-white" />
             )}
           </button>
 
-          {/* Pulse Animation */}
-          {pulseAnimation && (
-            <>
-              <div className="absolute inset-0 rounded-full bg-red-400 animate-ping opacity-75" />
-              <div className="absolute inset-0 rounded-full bg-red-400 animate-pulse opacity-50" />
-            </>
-          )}
+          {/* Subtle Ring Animation */}
+          <AnimatePresence>
+            {isListening && (
+              <motion.div
+                initial={{ scale: 1, opacity: 0 }}
+                animate={{ scale: 1.5, opacity: 0.15 }}
+                exit={{ scale: 1, opacity: 0 }}
+                transition={{ repeat: Infinity, duration: 2, ease: "easeInOut" }}
+                className="absolute top-0 w-24 h-24 rounded-full bg-red-500 pointer-events-none z-10"
+              />
+            )}
+          </AnimatePresence>
+
+          <p className="text-xl text-[var(--mk-text-secondary)] font-medium h-8 flex items-center">
+            {isListening ? 'Listening...' : 'Tap to speak'}
+          </p>
         </div>
 
-        <p className="text-xl text-gray-600 font-medium">
-          {isListening ? 'Listening... Tap to stop' : 'Tap to speak'}
-        </p>
+        {/* Transcript / Input Area */}
+        <div className="w-full max-w-3xl flex flex-col items-center justify-center">
+          {fallbackInput ? (
+            <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="w-full">
+              <textarea 
+                value={typedTranscript}
+                onChange={(e) => setTypedTranscript(e.target.value)}
+                placeholder="Type your answer here..."
+                autoFocus
+                className="w-full h-32 p-6 text-2xl bg-[var(--mk-surface)] border border-[var(--mk-border-strong)] text-[var(--mk-text)] rounded-2xl focus:border-[var(--mk-primary)] focus:ring-1 focus:ring-[var(--mk-primary)] outline-none shadow-sm resize-none"
+              />
+            </motion.div>
+          ) : (
+            activeTranscript && (
+              <motion.div 
+                initial={{ opacity: 0, y: 10 }} 
+                animate={{ opacity: 1, y: 0 }}
+                className="w-full text-center"
+              >
+                <p className="text-3xl text-[var(--mk-text)] leading-relaxed font-medium bg-[var(--mk-surface)] border border-[var(--mk-border)] py-6 px-8 rounded-2xl shadow-sm">
+                  &quot;{activeTranscript}&quot;
+                </p>
+              </motion.div>
+            )
+          )}
+        </div>
+      </div>
 
-        {/* Transcript Display */}
-        {transcript && (
-          <div className="bg-gray-50 rounded-2xl shadow-lg p-8 max-w-3xl w-full border-2 border-blue-200">
-            <div className="text-gray-600 text-sm font-semibold uppercase tracking-wide mb-3">
-              You Said
-            </div>
-            <p className="text-2xl text-gray-900 leading-relaxed">{transcript}</p>
-          </div>
+      {/* Bottom Actions - Sticky Footer */}
+      <div className="flex-shrink-0 w-full flex flex-col items-center p-6 bg-[var(--mk-bg)] border-t border-[var(--mk-border)] z-10 shadow-[0_-4px_6px_-1px_rgba(0,0,0,0.05)]">
+        <Button 
+          size="kiosk"
+          onClick={handleContinue}
+          disabled={!activeTranscript}
+          className="w-full max-w-md shadow-xl min-h-[64px] text-[26px] rounded-2xl"
+          style={{ 
+            backgroundColor: activeTranscript ? 'var(--mk-primary)' : 'var(--mk-surface-muted)',
+            color: activeTranscript ? 'var(--mk-text-inverse)' : 'var(--mk-text-muted)'
+          }}
+        >
+          Continue <ChevronRight className="w-8 h-8 ml-2" />
+        </Button>
+        
+        {!fallbackInput && (
+          <button 
+            onClick={handleEnableTyping}
+            className="flex items-center text-lg text-[var(--mk-text-secondary)] hover:text-[var(--mk-primary)] transition-colors py-3 px-6 mt-2 font-medium"
+          >
+            <Keyboard className="w-5 h-5 mr-2" />
+            Type instead
+          </button>
         )}
-
-        {/* Action Buttons */}
-        <div className="flex gap-6">
-          <Button variant="outline" size="lg" onClick={onBack}>
-            <ArrowLeft className="w-5 h-5 mr-2" />
-            Back
-          </Button>
-          
-          <Button variant="outline" size="lg" onClick={onRepeat}>
-            <RotateCcw className="w-5 h-5 mr-2" />
-            Repeat Question
-          </Button>
-
-          {transcript && (
-            <Button size="lg" onClick={onSubmit}>
-              Submit Answer
-            </Button>
-          )}
-        </div>
       </div>
     </div>
   );

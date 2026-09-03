@@ -2,7 +2,8 @@
 
 import { useEffect, useState } from 'react';
 import { Button } from '@/components/ui/button';
-import { CheckCircle, Printer } from 'lucide-react';
+import { Check } from 'lucide-react';
+import { motion } from 'framer-motion';
 
 interface TokenDisplayProps {
   tokenNumber: string;
@@ -10,91 +11,92 @@ interface TokenDisplayProps {
 }
 
 export function TokenDisplay({ tokenNumber, onComplete }: TokenDisplayProps) {
-  const [showSuccess, setShowSuccess] = useState(false);
-
   useEffect(() => {
-    setShowSuccess(true);
-    // Auto-return to idle after 30 seconds
     const timer = setTimeout(() => {
       onComplete();
-    }, 30000);
+    }, 15000);
+
     return () => clearTimeout(timer);
   }, [onComplete]);
 
-  const handlePrint = () => {
-    window.print();
-  };
-
   return (
-    <div className="min-h-screen bg-gradient-to-br from-green-50 to-blue-50 flex items-center justify-center p-8">
-      <div className="bg-white rounded-3xl shadow-2xl p-12 max-w-2xl w-full text-center">
-        {/* Success Animation */}
-        <div className={`mb-8 transition-all duration-500 ${showSuccess ? 'scale-100 opacity-100' : 'scale-50 opacity-0'}`}>
-          <div className="w-24 h-24 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-6">
-            <CheckCircle className="w-16 h-16 text-green-600" />
-          </div>
-          <h2 className="text-3xl font-bold text-gray-900 mb-2">
-            Check-in Complete!
-          </h2>
-          <p className="text-xl text-gray-600">
-            Your information has been compiled successfully
-          </p>
-        </div>
+    <div className="flex flex-col h-[100dvh] bg-[var(--mk-bg)] relative overflow-hidden">
+      
+      {/* Decorative background element */}
+      <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[600px] h-[600px] sm:w-[800px] sm:h-[800px] bg-green-50 rounded-full blur-3xl opacity-50 pointer-events-none" />
 
-        {/* Token Number */}
-        <div className="bg-gradient-to-br from-blue-50 to-blue-100 rounded-2xl p-12 mb-8 border-4 border-blue-200">
-          <div className="text-blue-600 text-sm font-semibold uppercase tracking-wide mb-2">
-            Your Token Number
+      {/* Main Content Area */}
+      <div className="flex-1 min-h-0 w-full overflow-y-auto flex flex-col items-center justify-center px-4 py-8 relative z-10">
+        <motion.div 
+          initial={{ scale: 0.95, opacity: 0, y: 20 }}
+          animate={{ scale: 1, opacity: 1, y: 0 }}
+          transition={{ duration: 0.8, ease: "easeOut" }}
+          className="max-w-2xl w-full text-center space-y-8 sm:space-y-12"
+        >
+          {/* Success Animation */}
+          <div className="flex flex-col items-center space-y-4 sm:space-y-6">
+            <motion.div 
+              initial={{ scale: 0 }}
+              animate={{ scale: 1 }}
+              transition={{ delay: 0.3, type: "spring", stiffness: 200, damping: 20 }}
+              className="w-20 h-20 sm:w-24 sm:h-24 bg-green-100 rounded-full flex items-center justify-center shrink-0"
+            >
+              <Check className="w-10 h-10 sm:w-12 sm:h-12 text-green-600" strokeWidth={3} />
+            </motion.div>
+            <h2 className="text-3xl sm:text-4xl md:text-5xl font-bold text-[var(--mk-text)] tracking-tight">
+              You&apos;re all set.
+            </h2>
           </div>
-          <div className="text-7xl font-bold text-blue-900 tracking-wider">
-            {tokenNumber}
-          </div>
-        </div>
 
-        {/* Instructions */}
-        <div className="space-y-4 mb-8 text-left bg-gray-50 rounded-xl p-6">
-          <div className="flex items-start gap-3">
-            <div className="w-8 h-8 bg-blue-600 text-white rounded-full flex items-center justify-center flex-shrink-0 font-bold">
-              1
+          {/* Token Number */}
+          <motion.div 
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.5, duration: 0.8 }}
+            className="bg-white rounded-3xl sm:rounded-[3rem] p-8 sm:p-12 md:p-16 shadow-xl border border-[var(--mk-border)] relative overflow-hidden"
+          >
+            <div className="absolute top-0 left-0 w-full h-2 bg-gradient-to-r from-green-400 to-[var(--mk-primary)]" />
+            <div className="text-[var(--mk-text-secondary)] text-sm sm:text-base md:text-lg font-bold uppercase tracking-[0.2em] mb-2 sm:mb-4">
+              Your Token
             </div>
-            <p className="text-gray-700 text-lg">
-              Please wait in the waiting area
-            </p>
-          </div>
-          <div className="flex items-start gap-3">
-            <div className="w-8 h-8 bg-blue-600 text-white rounded-full flex items-center justify-center flex-shrink-0 font-bold">
-              2
+            <div className="text-5xl sm:text-7xl md:text-8xl font-black text-[var(--mk-primary)] tracking-tight">
+              {tokenNumber}
             </div>
-            <p className="text-gray-700 text-lg">
-              Your token will be called on the display board
-            </p>
-          </div>
-          <div className="flex items-start gap-3">
-            <div className="w-8 h-8 bg-blue-600 text-white rounded-full flex items-center justify-center flex-shrink-0 font-bold">
-              3
-            </div>
-            <p className="text-gray-700 text-lg">
-              Present this token to the doctor when called
-            </p>
-          </div>
-        </div>
+          </motion.div>
 
-        {/* Action Buttons */}
-        <div className="flex gap-4 justify-center">
-          <Button variant="outline" size="lg" onClick={handlePrint}>
-            <Printer className="w-5 h-5 mr-2" />
-            Print Token
-          </Button>
-          <Button size="lg" onClick={onComplete}>
-            Done
-          </Button>
-        </div>
-
-        {/* Auto-return notice */}
-        <p className="text-sm text-gray-500 mt-6">
-          This screen will automatically reset in 30 seconds
-        </p>
+          {/* Instructions */}
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            transition={{ delay: 0.7, duration: 0.8 }}
+            className="space-y-2 sm:space-y-4"
+          >
+            <p className="text-xl sm:text-2xl text-[var(--mk-text-secondary)] font-medium">
+              Please wait in the OPD waiting area.
+            </p>
+            <p className="text-base sm:text-lg text-[var(--mk-text-muted)]">
+              We will call your number shortly.
+            </p>
+          </motion.div>
+        </motion.div>
       </div>
+
+      {/* Sticky Action Footer */}
+      <motion.div
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ delay: 0.9, duration: 0.8 }}
+        className="flex-shrink-0 w-full flex flex-col items-center px-4 py-4 sm:py-6 bg-[var(--mk-bg)] border-t border-[var(--mk-border)] z-20 shadow-[0_-4px_6px_-1px_rgba(0,0,0,0.05)] pb-6"
+      >
+        <Button 
+          size="kiosk" 
+          onClick={onComplete} 
+          className="w-full max-w-sm shadow-lg h-[64px] text-xl rounded-xl"
+        >
+          Finish
+        </Button>
+      </motion.div>
+
     </div>
   );
 }

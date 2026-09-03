@@ -1,65 +1,368 @@
 @import "tailwindcss";
 
-/* Custom animations */
-@keyframes pulse-slow {
-  0%, 100% {
-    opacity: 1;
-  }
-  50% {
-    opacity: 0.5;
+/* ============================================================
+   MediKiosk 2.0 Design System
+   ============================================================
+   Calm · Trustworthy · Human · Premium · Medical · Accessible
+   ============================================================ */
+
+/* ---- Design Tokens: Light (Default) ---- */
+:root {
+  /* Primary — calm medical teal */
+  --mk-primary: #0D9488;
+  --mk-primary-light: #5EEAD4;
+  --mk-primary-dark: #0F766E;
+  --mk-primary-subtle: #F0FDFA;
+
+  /* Accent — warm clinical blue */
+  --mk-accent: #2563EB;
+  --mk-accent-light: #93C5FD;
+  --mk-accent-dark: #1D4ED8;
+
+  /* Surfaces */
+  --mk-bg: #FAFBFC;
+  --mk-surface: #FFFFFF;
+  --mk-surface-elevated: #FFFFFF;
+  --mk-surface-muted: #F8FAFC;
+  --mk-surface-hover: #F1F5F9;
+
+  /* Borders */
+  --mk-border: #E2E8F0;
+  --mk-border-strong: #CBD5E1;
+  --mk-border-focus: var(--mk-primary);
+
+  /* Text */
+  --mk-text: #0F172A;
+  --mk-text-secondary: #475569;
+  --mk-text-muted: #94A3B8;
+  --mk-text-inverse: #FFFFFF;
+
+  /* Status */
+  --mk-success: #059669;
+  --mk-success-light: #D1FAE5;
+  --mk-warning: #D97706;
+  --mk-warning-light: #FEF3C7;
+  --mk-urgent: #DC2626;
+  --mk-urgent-light: #FEE2E2;
+  --mk-error: #DC2626;
+  --mk-error-light: #FEE2E2;
+  --mk-info: #2563EB;
+  --mk-info-light: #DBEAFE;
+
+  /* Typography scale */
+  --mk-text-xs: 0.75rem;
+  --mk-text-sm: 0.875rem;
+  --mk-text-base: 1rem;
+  --mk-text-lg: 1.125rem;
+  --mk-text-xl: 1.25rem;
+  --mk-text-2xl: 1.5rem;
+  --mk-text-3xl: 1.875rem;
+  --mk-text-4xl: 2.25rem;
+  --mk-text-5xl: 3rem;
+  --mk-text-6xl: 3.75rem;
+  --mk-text-7xl: 4.5rem;
+
+  /* Touch targets */
+  --mk-touch-min: 44px;
+  --mk-touch-default: 48px;
+  --mk-touch-kiosk: 64px;
+  --mk-touch-kiosk-lg: 80px;
+
+  /* Transitions */
+  --mk-transition-fast: 150ms;
+  --mk-transition-normal: 250ms;
+  --mk-transition-slow: 400ms;
+  --mk-ease: cubic-bezier(0.4, 0, 0.2, 1);
+
+  /* Elevation */
+  --mk-shadow-xs: 0 1px 2px rgba(0, 0, 0, 0.05);
+  --mk-shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.08), 0 1px 2px rgba(0, 0, 0, 0.04);
+  --mk-shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.08), 0 2px 4px -2px rgba(0, 0, 0, 0.04);
+  --mk-shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.08), 0 4px 6px -4px rgba(0, 0, 0, 0.04);
+  --mk-shadow-xl: 0 20px 25px -5px rgba(0, 0, 0, 0.08), 0 8px 10px -6px rgba(0, 0, 0, 0.04);
+  --mk-shadow-2xl: 0 25px 50px -12px rgba(0, 0, 0, 0.15);
+  --mk-shadow-glow: 0 0 20px rgba(13, 148, 136, 0.15);
+
+  /* Radii */
+  --mk-radius-sm: 0.375rem;
+  --mk-radius-md: 0.5rem;
+  --mk-radius-lg: 0.75rem;
+  --mk-radius-xl: 1rem;
+  --mk-radius-2xl: 1.25rem;
+  --mk-radius-3xl: 1.5rem;
+  --mk-radius-full: 9999px;
+
+  /* Sidebar */
+  --mk-sidebar-width: 280px;
+}
+
+/* ---- Dark Mode ---- */
+[data-theme="dark"] {
+  --mk-primary: #2DD4BF;
+  --mk-primary-light: #5EEAD4;
+  --mk-primary-dark: #14B8A6;
+  --mk-primary-subtle: #042F2E;
+
+  --mk-accent: #60A5FA;
+  --mk-accent-light: #93C5FD;
+  --mk-accent-dark: #3B82F6;
+
+  --mk-bg: #0C1222;
+  --mk-surface: #1E293B;
+  --mk-surface-elevated: #273549;
+  --mk-surface-muted: #162032;
+  --mk-surface-hover: #334155;
+
+  --mk-border: #334155;
+  --mk-border-strong: #475569;
+
+  --mk-text: #F1F5F9;
+  --mk-text-secondary: #CBD5E1;
+  --mk-text-muted: #64748B;
+  --mk-text-inverse: #0F172A;
+
+  --mk-success: #34D399;
+  --mk-success-light: #064E3B;
+  --mk-warning: #FBBF24;
+  --mk-warning-light: #451A03;
+  --mk-urgent: #F87171;
+  --mk-urgent-light: #450A0A;
+  --mk-error: #F87171;
+  --mk-error-light: #450A0A;
+  --mk-info: #60A5FA;
+  --mk-info-light: #172554;
+
+  --mk-shadow-xs: 0 1px 2px rgba(0, 0, 0, 0.3);
+  --mk-shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.4);
+  --mk-shadow-md: 0 4px 6px rgba(0, 0, 0, 0.35);
+  --mk-shadow-lg: 0 10px 15px rgba(0, 0, 0, 0.35);
+  --mk-shadow-xl: 0 20px 25px rgba(0, 0, 0, 0.4);
+  --mk-shadow-2xl: 0 25px 50px rgba(0, 0, 0, 0.5);
+  --mk-shadow-glow: 0 0 20px rgba(45, 212, 191, 0.2);
+}
+
+/* ---- High Contrast (WCAG AAA) ---- */
+[data-theme="high-contrast"] {
+  --mk-primary: #006D64;
+  --mk-primary-light: #008577;
+  --mk-primary-dark: #004D47;
+  --mk-primary-subtle: #E6F7F5;
+
+  --mk-bg: #FFFFFF;
+  --mk-surface: #FFFFFF;
+  --mk-surface-elevated: #FFFFFF;
+  --mk-surface-muted: #F5F5F5;
+  --mk-surface-hover: #EEEEEE;
+
+  --mk-border: #000000;
+  --mk-border-strong: #000000;
+
+  --mk-text: #000000;
+  --mk-text-secondary: #1A1A1A;
+  --mk-text-muted: #333333;
+  --mk-text-inverse: #FFFFFF;
+
+  --mk-success: #006400;
+  --mk-success-light: #E6FFE6;
+  --mk-warning: #8B6914;
+  --mk-warning-light: #FFF8E1;
+  --mk-urgent: #8B0000;
+  --mk-urgent-light: #FFE0E0;
+  --mk-error: #8B0000;
+  --mk-error-light: #FFE0E0;
+
+  --mk-shadow-xs: none;
+  --mk-shadow-sm: none;
+  --mk-shadow-md: 0 0 0 2px #000;
+  --mk-shadow-lg: 0 0 0 2px #000;
+  --mk-shadow-xl: 0 0 0 3px #000;
+  --mk-shadow-2xl: 0 0 0 3px #000;
+}
+
+[data-theme="high-contrast"] * {
+  border-color: var(--mk-border) !important;
+  font-weight: 600;
+}
+
+/* ============================================================
+   Base Styles
+   ============================================================ */
+
+body {
+  background-color: var(--mk-bg);
+  color: var(--mk-text);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+/* ---- Focus Ring ---- */
+*:focus-visible {
+  outline: 2px solid var(--mk-primary);
+  outline-offset: 2px;
+  border-radius: var(--mk-radius-sm);
+}
+
+/* ---- Selection ---- */
+::selection {
+  background-color: var(--mk-primary);
+  color: var(--mk-text-inverse);
+}
+
+/* ============================================================
+   Scrollbar
+   ============================================================ */
+
+::-webkit-scrollbar { width: 6px; height: 6px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb {
+  background: var(--mk-border-strong);
+  border-radius: var(--mk-radius-full);
+}
+::-webkit-scrollbar-thumb:hover {
+  background: var(--mk-text-muted);
+}
+
+/* ============================================================
+   Animations
+   ============================================================ */
+
+@keyframes mk-pulse-soft {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.6; }
+}
+
+@keyframes mk-shimmer {
+  0% { background-position: -200% 0; }
+  100% { background-position: 200% 0; }
+}
+
+@keyframes mk-fade-in {
+  from { opacity: 0; transform: translateY(8px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes mk-slide-in-right {
+  from { opacity: 0; transform: translateX(16px); }
+  to { opacity: 1; transform: translateX(0); }
+}
+
+@keyframes mk-scale-in {
+  from { opacity: 0; transform: scale(0.95); }
+  to { opacity: 1; transform: scale(1); }
+}
+
+@keyframes mk-spin {
+  to { transform: rotate(360deg); }
+}
+
+@keyframes mk-ping-soft {
+  75%, 100% { transform: scale(1.8); opacity: 0; }
+}
+
+@keyframes mk-draw-check {
+  to { stroke-dashoffset: 0; }
+}
+
+@keyframes mk-listening-ring {
+  0% { transform: scale(1); opacity: 0.6; }
+  100% { transform: scale(1.6); opacity: 0; }
+}
+
+.animate-mk-pulse { animation: mk-pulse-soft 2s cubic-bezier(0.4, 0, 0.6, 1) infinite; }
+.animate-mk-shimmer {
+  background: linear-gradient(90deg, var(--mk-surface-muted) 25%, var(--mk-surface-hover) 50%, var(--mk-surface-muted) 75%);
+  background-size: 200% 100%;
+  animation: mk-shimmer 1.5s ease-in-out infinite;
+}
+.animate-mk-fade-in { animation: mk-fade-in var(--mk-transition-normal) var(--mk-ease) both; }
+.animate-mk-slide-in { animation: mk-slide-in-right var(--mk-transition-normal) var(--mk-ease) both; }
+.animate-mk-scale-in { animation: mk-scale-in var(--mk-transition-normal) var(--mk-ease) both; }
+.animate-mk-spin { animation: mk-spin 0.8s linear infinite; }
+.animate-mk-ping { animation: mk-ping-soft 1.5s cubic-bezier(0, 0, 0.2, 1) infinite; }
+.animate-mk-listening { animation: mk-listening-ring 1.5s ease-out infinite; }
+
+/* Respect reduced motion preference */
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
   }
 }
 
-.animate-pulse-slow {
-  animation: pulse-slow 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
-}
+/* ============================================================
+   Print Styles — Token Display
+   ============================================================ */
 
-/* Print styles for token */
 @media print {
-  body * {
-    visibility: hidden;
+  body * { visibility: hidden; }
+
+  [data-print-token],
+  [data-print-token] * {
+    visibility: visible !important;
   }
-  .print-token, .print-token * {
-    visibility: visible;
-  }
-  .print-token {
+
+  [data-print-token] {
     position: absolute;
     left: 0;
     top: 0;
     width: 100%;
+    padding: 2rem;
+    background: white !important;
+    color: black !important;
+  }
+
+  /* Hide non-essential print elements */
+  nav, header, footer, button, .no-print {
+    display: none !important;
   }
 }
 
-/* Custom scrollbar */
-::-webkit-scrollbar {
-  width: 8px;
-  height: 8px;
+/* ============================================================
+   Kiosk-specific Utilities
+   ============================================================ */
+
+.kiosk-touch-target {
+  min-height: var(--mk-touch-kiosk);
+  min-width: var(--mk-touch-kiosk);
 }
 
-::-webkit-scrollbar-track {
-  background: #f1f1f1;
+.kiosk-glass {
+  background: rgba(255, 255, 255, 0.85);
+  backdrop-filter: blur(20px) saturate(180%);
+  -webkit-backdrop-filter: blur(20px) saturate(180%);
+  border: 1px solid rgba(255, 255, 255, 0.3);
 }
 
-::-webkit-scrollbar-thumb {
-  background: #888;
-  border-radius: 4px;
+[data-theme="dark"] .kiosk-glass {
+  background: rgba(15, 23, 42, 0.85);
+  border-color: rgba(255, 255, 255, 0.1);
 }
 
-::-webkit-scrollbar-thumb:hover {
-  background: #555;
+/* ============================================================
+   Source Provenance Labels
+   ============================================================ */
+
+.source-patient-reported {
+  color: var(--mk-accent);
+  background: var(--mk-info-light);
+  border: 1px solid var(--mk-accent);
 }
 
-/* High contrast mode support */
-.high-contrast {
-  filter: contrast(1.5) saturate(1.2);
+.source-ocr-extracted {
+  color: var(--mk-warning);
+  background: var(--mk-warning-light);
+  border: 1px solid var(--mk-warning);
 }
 
-.high-contrast * {
-  border-color: #000 !important;
+.source-ai-summarized {
+  color: #7C3AED;
+  background: #F3E8FF;
+  border: 1px solid #7C3AED;
 }
 
-.high-contrast .text-gray-500,
-.high-contrast .text-gray-600 {
-  color: #111 !important;
-  font-weight: 700 !important;
+.source-doctor-verified {
+  color: var(--mk-success);
+  background: var(--mk-success-light);
+  border: 1px solid var(--mk-success);
 }
