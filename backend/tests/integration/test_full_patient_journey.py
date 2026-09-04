@@ -124,15 +124,23 @@ async def test_full_patient_preconsultation_journey(client: AsyncClient):
         headers=doctor_headers,
     )
     assert diag_res.status_code == 200
-    diag = diag_res.json()
-    assert diag["diagnosis_text"] == "Acute Bacterial Pharyngitis with Pyrexia"
+    diag_data = diag_res.json()
+    assert diag_data["diagnosis_text"] == "Acute Bacterial Pharyngitis with Pyrexia"
 
-    # Verify session is now COMPLETED
+    # --- 8. Patient checks status ---
     session_check = await client.get(
         f"/api/v1/sessions/{session_id}",
         headers={"X-Session-Token": session_id}
     )
-    assert session_check.json()["status"] == "COMPLETED"
+    assert session_check.status_code == 200
+    assert session_check.json()["status"] == "DIAGNOSIS_RECORDED"
+
+    # 8.5 Complete encounter
+    comp_res = await client.post(
+        f"/api/v1/doctor/encounters/{session_id}/complete",
+        headers=doctor_headers,
+    )
+    assert comp_res.status_code == 200
 
     # -------------------------------------------------------------------------
     # 9. FHIR R4 Bundle Generation

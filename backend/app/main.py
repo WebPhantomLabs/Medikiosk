@@ -28,6 +28,7 @@ from app.api.routers import (
     sessions_admin,
     audit,
     staff,
+    speech,
 )
 from app.core.config import get_settings
 from app.core.exceptions import MediKioskError
@@ -73,6 +74,29 @@ def create_app() -> FastAPI:
         allow_headers=["*"],
     )
 
+    _rate_limit_cache: dict[str, list[float]] = {}
+
+    @app.middleware("http")
+    async def rate_limit_auth(request: Request, call_next):
+        if request.url.path.startswith(f"{settings.API_V1_PREFIX}/auth"):
+            client_ip = request.client.host if request.client else "unknown"
+            now = time.time()
+            
+            if client_ip not in _rate_limit_cache:
+                _rate_limit_cache[client_ip] = []
+                
+            _rate_limit_cache[client_ip] = [ts for ts in _rate_limit_cache[client_ip] if now - ts < 60]
+            
+            if len(_rate_limit_cache[client_ip]) >= settings.AUTH_RATE_LIMIT_PER_MINUTE:
+                return JSONResponse(
+                    status_code=429,
+                    content={"error": {"code": "RATE_LIMITED", "message": "Too many requests. Please try again later."}}
+                )
+            
+            _rate_limit_cache[client_ip].append(now)
+
+        return await call_next(request)
+
     @app.middleware("http")
     async def add_request_id_and_timing(request: Request, call_next):
         request_id = str(uuid.uuid4())
@@ -106,7 +130,6 @@ def create_app() -> FastAPI:
         logger.exception(
             "unhandled exception", extra={"request_id": request_id, "path": request.url.path}
         )
-        # Never leak stack traces / internal details to the client.
         return JSONResponse(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             content={
@@ -117,8 +140,26 @@ def create_app() -> FastAPI:
             },
         )
 
+    from fastapi.exceptions import RequestValidationError
+    from starlette.exceptions import HTTPException as StarletteHTTPException
+
+    @app.exception_handler(StarletteHTTPException)
+    async def handle_http_exception(request: Request, exc: StarletteHTTPException) -> JSONResponse:
+        return JSONResponse(
+            status_code=exc.status_code,
+            content={"error": {"code": "HTTP_ERROR", "message": str(exc.detail)}},
+        )
+
+    @app.exception_handler(RequestValidationError)
+    async def handle_validation_error(request: Request, exc: RequestValidationError) -> JSONResponse:
+        return JSONResponse(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            content={"error": {"code": "VALIDATION_ERROR", "message": "Request validation failed."}},
+        )
+
     prefix = settings.API_V1_PREFIX
     app.include_router(health.router)  # /health (unversioned, for infra probes)
+    app.include_router(health.router, prefix=prefix)  # /api/v1/health for frontend client
     app.include_router(auth.router, prefix=f"{prefix}/auth")
     app.include_router(sessions.router, prefix=f"{prefix}/sessions")
     app.include_router(intake.router, prefix=f"{prefix}/intake")
@@ -130,6 +171,7 @@ def create_app() -> FastAPI:
     app.include_router(kiosks.router, prefix=f"{prefix}/admin/kiosks")
     app.include_router(sessions_admin.router, prefix=f"{prefix}/admin/sessions")
     app.include_router(audit.router, prefix=f"{prefix}/admin/audit-logs")
+    app.include_router(speech.router, prefix=f"{prefix}/speech")
 
     return app
 

@@ -24,6 +24,7 @@ from app.services.ocr.mock import MockOCRProvider
 from app.services.ocr.vision import GoogleVisionOCRProvider
 from app.services.storage.base import StorageProvider
 from app.services.storage.local import LocalStorageProvider, MockStorageProvider
+from app.services.abdm.base import ABDMProvider
 
 
 @dataclass(frozen=True)
@@ -101,3 +102,28 @@ def get_storage_provider() -> StorageProvider:
     if settings.APP_ENV == "test":
         return MockStorageProvider()
     return LocalStorageProvider()
+
+
+def get_abdm_provider() -> ABDMProvider:
+    """Factory dependency for ABDMProvider."""
+    settings = get_settings()
+    if settings.ABDM_ENABLED and settings.ABDM_CLIENT_ID:
+        from app.services.abdm.client import ABDMClient
+        return ABDMClient(settings)
+    from app.services.abdm.mock import MockABDMProvider
+    return MockABDMProvider()
+
+
+def get_speech_provider() -> "app.services.speech.base.SpeechProvider":
+    settings = get_settings()
+    if settings.BHASHINI_API_KEY:
+        from app.services.speech.bhashini import BhashiniSpeechProvider
+        return BhashiniSpeechProvider(
+            api_key=settings.BHASHINI_API_KEY,
+            user_id=settings.BHASHINI_USER_ID,
+            ulca_api_key=settings.BHASHINI_ULCA_API_KEY,
+            pipeline_url=settings.BHASHINI_PIPELINE_URL,
+            timeout=settings.BHASHINI_TIMEOUT_SECONDS
+        )
+    from app.services.speech.mock import MockSpeechProvider
+    return MockSpeechProvider()

@@ -9,7 +9,7 @@ from __future__ import annotations
 
 from functools import lru_cache
 
-from pydantic import Field
+from pydantic import Field, model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
@@ -38,9 +38,17 @@ class Settings(BaseSettings):
     SUPABASE_URL: str = Field(default="")
     SUPABASE_SERVICE_ROLE_KEY: str = Field(default="")
 
+    # --- ABDM ---
+    ABDM_BASE_URL: str = Field(default='https://dev.abdm.gov.in')
+    ABDM_CLIENT_ID: str = Field(default='')
+    ABDM_CLIENT_SECRET: str = Field(default='')
+    ABDM_ENABLED: bool = Field(default=False)
+
     # --- Gemini ---------------------------------------------------------
     GEMINI_API_KEY: str = Field(default="")
     GEMINI_MODEL: str = Field(default="gemini-2.0-flash")
+    GEMINI_TIMEOUT_SECONDS: int = Field(default=30)
+    GEMINI_MAX_RETRIES: int = Field(default=2)
 
     # --- Google Cloud Vision -------------------------------------------
     GOOGLE_APPLICATION_CREDENTIALS: str = Field(default="")
@@ -68,6 +76,13 @@ class Settings(BaseSettings):
         default="image/jpeg,image/png,application/pdf"
     )
 
+    # --- Bhashini Speech ---
+    BHASHINI_API_KEY: str = Field(default='')
+    BHASHINI_USER_ID: str = Field(default='')
+    BHASHINI_ULCA_API_KEY: str = Field(default='')
+    BHASHINI_PIPELINE_URL: str = Field(default='https://dhruva-api.bhashini.gov.in/services/inference/pipeline')
+    BHASHINI_TIMEOUT_SECONDS: int = Field(default=30)
+
     # --- CORS ---------------------------------------------------------------
     CORS_ORIGINS: str = Field(default="http://localhost:3000")
 
@@ -87,6 +102,12 @@ class Settings(BaseSettings):
     def is_production(self) -> bool:
         return self.APP_ENV.lower() in {"prod", "production"}
 
+    @model_validator(mode="after")
+    def _validate_jwt_secret(self) -> Settings:
+        import warnings
+        if self.is_production and self.JWT_SECRET_KEY == "change-me-in-production":
+            warnings.warn("JWT_SECRET_KEY is set to the default insecure value in production!", UserWarning)
+        return self
 
 @lru_cache
 def get_settings() -> Settings:

@@ -131,6 +131,8 @@ class DoctorService:
         intake_history: list[IntakeAnswerHistory] = []
         for ans in raw_intakes:
             q_node = await self.question_repo.get_by_id(ans["node_id"])
+            ans_meta = ans.get("metadata") or {}
+            source = ans_meta.get("source", "ai_classification")
             intake_history.append(
                 IntakeAnswerHistory(
                     id=str(ans["id"]) if ans.get("id") else None,
@@ -140,6 +142,8 @@ class DoctorService:
                     answer_category=ans["answer_category"],
                     next_node_id=ans.get("next_node_id"),
                     sequence=ans["sequence"],
+                    source=source,
+                    requires_verification=True,
                     created_at=ans["created_at"],
                 )
             )
@@ -237,8 +241,8 @@ class DoctorService:
                 "notes": payload.notes,
             })
 
-        # Transition session to COMPLETED
-        await self.session_repo.update_status(session_id, "COMPLETED")
+        # Transition session to DIAGNOSIS_RECORDED
+        await self.session_repo.update_status(session_id, "DIAGNOSIS_RECORDED")
 
         # Record audit log
         await self.audit_repo.insert({
@@ -262,3 +266,35 @@ class DoctorService:
             created_at=diag_record["created_at"],
             updated_at=diag_record.get("updated_at", diag_record["created_at"]),
         )
+
+    async def complete_encounter(self, session_id: str, doctor_id: str) -> dict:
+        """Mark the encounter as fully completed (signed off)."""
+        session = await self.session_repo.get_by_id(session_id)
+        if not session:
+            raise NotFoundError(f"Session '{session_id}' not found.", code="SESSION_NOT_FOUND")
+
+        # Validate that diagnosis is recorded
+        if session["status"] not in ["DIAGNOSIS_RECORDED", "COMPLETED"]:
+            raise MediKioskError("Session must have a diagnosis recorded before completing.", code="INVALID_STATUS")
+
+        from app.services.fhir_service import FHIRService
+        from app.core.exceptions import FhirBuildError
+        
+        try:
+            fhir_svc = FHIRService(self.db)
+            await fhir_svc.generate_bundle(session_id)
+        except Exception as e:
+            raise FhirBuildError(f"Cannot complete encounter because FHIR bundle generation failed: {str(e)}") from e
+
+        updated = await self.session_repo.update_status(session_id, "COMPLETED")
+
+        await self.audit_repo.insert({
+            "actor_id": doctor_id,
+            "actor_role": "DOCTOR",
+            "action": "COMPLETE_ENCOUNTER",
+            "resource_type": "session",
+            "resource_id": session_id,
+            "metadata": {"previous_status": session["status"]},
+        })
+
+        return updated

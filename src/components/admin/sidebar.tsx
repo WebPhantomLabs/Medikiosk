@@ -5,6 +5,7 @@ import { Button } from '@/components/ui/button';
 import { LayoutDashboard, HelpCircle, Users, Monitor, Languages, LogOut, Menu, X, Activity } from 'lucide-react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
+import { ProviderStatus } from './provider-status';
 
 interface AdminSidebarProps {
   onLogout: () => void;
@@ -70,16 +71,7 @@ export function AdminSidebar({ onLogout }: AdminSidebarProps) {
       {/* Footer Area: Health + Logout */}
       <div className="p-4 border-t space-y-4" style={{ borderColor: 'var(--mk-border)' }}>
         
-        {/* System Health */}
-        <div className="flex items-center gap-2 px-2 py-1">
-          <span className="relative flex h-3 w-3">
-            <span className="animate-ping absolute inline-flex h-full w-full rounded-full opacity-75" style={{ backgroundColor: 'var(--mk-success)' }}></span>
-            <span className="relative inline-flex rounded-full h-3 w-3" style={{ backgroundColor: 'var(--mk-success)' }}></span>
-          </span>
-          <span className="text-xs font-medium" style={{ color: 'var(--mk-text-secondary)' }}>
-            All systems operational
-          </span>
-        </div>
+        <ProviderStatus />
 
         <Button
           variant="outline"

@@ -80,7 +80,7 @@ export function PatientSummary({ tokenNumber, onClose, onSignOff }: PatientSumma
     setIsSubmitting(true);
     try {
       if (patientData) {
-        await doctor.signoff(patientData.session_id, { diagnosis, prescription });
+        await doctor.recordDiagnosis(patientData.session_id, { diagnosis_text: diagnosis, notes: prescription });
         onSignOff();
       }
     } catch (error) {
@@ -216,7 +216,19 @@ export function PatientSummary({ tokenNumber, onClose, onSignOff }: PatientSumma
                   <tbody className="divide-y divide-[var(--mk-border)]">
                     {allMeds.map((med: any, index: number) => (
                       <tr key={index}>
-                        <td className="px-6 py-4 font-medium text-[var(--mk-text)] whitespace-normal break-words">{med.name}</td>
+                        <td className="px-6 py-4 font-medium text-[var(--mk-text)] whitespace-normal break-words">
+                          {med.name}
+                          {med.source === 'ai_extracted' && (
+                            <span className="ml-2 inline-flex items-center px-2 py-0.5 rounded text-[10px] font-bold bg-amber-100 text-amber-800">
+                              AI Extracted
+                            </span>
+                          )}
+                          {med.requires_verification && (
+                            <span className="ml-2 inline-flex items-center px-2 py-0.5 rounded text-[10px] font-bold bg-red-100 text-red-800">
+                              Needs Verification
+                            </span>
+                          )}
+                        </td>
                         <td className="px-6 py-4 text-[var(--mk-text-secondary)]">{med.dose || '-'}</td>
                         <td className="px-6 py-4 text-[var(--mk-text-secondary)]">{med.frequency || '-'}</td>
                         <td className="px-6 py-4 text-[var(--mk-text-secondary)]">{med.duration || '-'}</td>

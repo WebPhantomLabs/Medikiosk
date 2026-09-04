@@ -1,8 +1,13 @@
 from __future__ import annotations
 
+import asyncio
 import json
+import time
 
-from app.core.exceptions import MediKioskError
+from pydantic import ValidationError
+
+from app.core.config import get_settings
+from app.core.exceptions import MediKioskError, LlmProviderError, LlmValidationError
 from app.core.logging import get_logger
 from app.schemas.document import MedicationExtractionResult, MedicationItem
 from app.schemas.intake import AnswerClassificationResult
@@ -32,6 +37,63 @@ class GeminiAIProvider(AIProvider):
             self._client = genai.Client(api_key=self.api_key)
         return self._client
 
+    async def _generate_content_with_retry(self, prompt: str) -> str:
+        settings = get_settings()
+        timeout = settings.GEMINI_TIMEOUT_SECONDS
+        max_retries = settings.GEMINI_MAX_RETRIES
+
+        for attempt in range(max_retries + 1):
+            try:
+                start_time = time.time()
+                client = self._get_client()
+                
+                response = await asyncio.wait_for(
+                    asyncio.to_thread(
+                        client.models.generate_content,
+                        model=self.model_name,
+                        contents=prompt,
+                    ),
+                    timeout=timeout
+                )
+                latency = time.time() - start_time
+                logger.info(
+                    "Gemini API call successful",
+                    extra={"latency": latency, "model": self.model_name, "attempt": attempt + 1}
+                )
+                return response.text.strip()
+            
+            except TimeoutError:
+                logger.warning(f"Gemini API call timeout (attempt {attempt + 1})")
+                if attempt == max_retries:
+                    raise LlmProviderError("AI timeout", code="AI_TIMEOUT")
+                await asyncio.sleep(2 ** attempt)
+            
+            except Exception as e:
+                err_str = str(e).lower()
+                is_transient = any(x in err_str for x in ["429", "500", "503", "quota", "rate limit"])
+                logger.warning(f"Gemini API call error (attempt {attempt + 1}): {err_str}")
+                
+                if is_transient and attempt < max_retries:
+                    await asyncio.sleep(2 ** attempt)
+                    continue
+                
+                if "quota" in err_str or "429" in err_str:
+                    raise LlmProviderError("Quota exceeded", code="AI_QUOTA_EXCEEDED")
+                
+                raise MediKioskError(f"AI service failed: {str(e)}", code="AI_SERVICE_ERROR", status_code=502)
+
+    def _parse_json_response(self, raw_text: str) -> dict:
+        if raw_text.startswith("```json"):
+            raw_text = raw_text.removeprefix("```json").removesuffix("```").strip()
+        elif raw_text.startswith("```"):
+            raw_text = raw_text.removeprefix("```").removesuffix("```").strip()
+
+        try:
+            return json.loads(raw_text)
+        except json.JSONDecodeError as e:
+            logger.error("Gemini invalid JSON response: %s", str(e))
+            raise LlmValidationError("Invalid JSON response from AI", code="AI_INVALID_RESPONSE")
+
     async def classify_intake_answer(
         self,
         transcript: str,
@@ -60,41 +122,28 @@ Rules:
   "reasoning": "<brief 1-sentence rationale>"
 }}
 """
+        raw_text = await self._generate_content_with_retry(prompt)
+        parsed = self._parse_json_response(raw_text)
+
         try:
-            client = self._get_client()
-            response = client.models.generate_content(
-                model=self.model_name,
-                contents=prompt,
+            result = AnswerClassificationResult.model_validate(parsed)
+        except ValidationError as e:
+            logger.error("Gemini classification Pydantic validation failed: %s", str(e))
+            raise LlmValidationError("Invalid JSON response format from AI", code="AI_INVALID_RESPONSE")
+
+        # Verify against allowed categories
+        matching_cat = next((c for c in allowed_categories if c.lower() == result.classified_category.lower()), None)
+        if not matching_cat:
+            raise LlmValidationError(
+                f"Gemini returned category '{result.classified_category}' not in allowed categories.",
+                code="AI_VALIDATION_ERROR"
             )
-            raw_text = response.text.strip()
-            # Clean possible markdown wrapping
-            if raw_text.startswith("```json"):
-                raw_text = raw_text.removeprefix("```json").removesuffix("```").strip()
-            elif raw_text.startswith("```"):
-                raw_text = raw_text.removeprefix("```").removesuffix("```").strip()
 
-            parsed = json.loads(raw_text)
-            category = parsed.get("classified_category", "").strip()
-            confidence = float(parsed.get("confidence", 0.9))
-            reasoning = parsed.get("reasoning", "")
-
-            # Verify against allowed categories
-            matching_cat = next((c for c in allowed_categories if c.lower() == category.lower()), None)
-            if not matching_cat:
-                from app.core.exceptions import LlmValidationError
-                raise LlmValidationError(
-                    f"Gemini returned category '{category}' not in allowed categories.",
-                    code="AI_VALIDATION_ERROR"
-                )
-
-            return AnswerClassificationResult(
-                classified_category=matching_cat,
-                confidence=confidence,
-                reasoning=reasoning,
-            )
-        except Exception as e:
-            logger.error("Gemini classification failed: %s", str(e))
-            raise MediKioskError(f"AI classification service failed: {str(e)}", code="AI_SERVICE_ERROR", status_code=502)
+        return AnswerClassificationResult(
+            classified_category=matching_cat,
+            confidence=result.confidence,
+            reasoning=result.reasoning,
+        )
 
     async def extract_medications(self, ocr_text: str) -> list[MedicationItem]:
         if not ocr_text.strip():
@@ -125,21 +174,12 @@ Rules:
   ]
 }}
 """
-        try:
-            client = self._get_client()
-            response = client.models.generate_content(
-                model=self.model_name,
-                contents=prompt,
-            )
-            raw_text = response.text.strip()
-            if raw_text.startswith("```json"):
-                raw_text = raw_text.removeprefix("```json").removesuffix("```").strip()
-            elif raw_text.startswith("```"):
-                raw_text = raw_text.removeprefix("```").removesuffix("```").strip()
+        raw_text = await self._generate_content_with_retry(prompt)
+        parsed = self._parse_json_response(raw_text)
 
-            parsed = json.loads(raw_text)
-            med_res = MedicationExtractionResult(**parsed)
+        try:
+            med_res = MedicationExtractionResult.model_validate(parsed)
             return med_res.medications
-        except Exception as e:
-            logger.error("Gemini medication extraction failed: %s", str(e))
-            raise MediKioskError(f"AI extraction service failed: {str(e)}", code="AI_SERVICE_ERROR", status_code=502)
+        except ValidationError as e:
+            logger.error("Gemini medication extraction Pydantic validation failed: %s", str(e))
+            raise LlmValidationError("Invalid JSON response format from AI", code="AI_INVALID_RESPONSE")

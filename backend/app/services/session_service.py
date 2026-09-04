@@ -59,7 +59,7 @@ class SessionService:
         patient_id = str(patient["id"])
 
         # 3. Find Start Question Node
-        start_node = await self.question_repo.get_start_node()
+        start_node = await self.question_repo.get_start_node(payload.branch)
         start_node_id = start_node["node_id"] if start_node else None
 
         # 4. Create Session

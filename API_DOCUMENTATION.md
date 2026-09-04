@@ -25,6 +25,26 @@ This document describes the API endpoints used by the MediKiosk frontend to comm
 
 ## Endpoints
 
+### 🩺 Observability
+
+#### GET `/health/ready`
+Get service health and provider readiness status.
+
+**Response:**
+```json
+{
+  "status": "UP",
+  "providers": {
+    "database": "supabase",
+    "ai": "gemini",
+    "ocr": "vision",
+    "speech": "bhashini"
+  }
+}
+```
+
+---
+
 ### 🔐 Authentication
 
 #### POST `/auth/login`
@@ -100,6 +120,41 @@ Get current user info
 
 ---
 
+### 🎤 Speech
+
+#### POST `/speech/transcribe`
+Convert speech audio to text (ASR)
+
+**Request:** `multipart/form-data`
+- `language` (form parameter)
+- `audio` (file): Audio file
+
+**Response:**
+```json
+{
+  "text": "Extracted text",
+  "confidence": 0.95,
+  "language": "hi",
+  "duration_ms": 1500
+}
+```
+
+#### POST `/speech/synthesize`
+Convert text to speech audio (TTS)
+
+**Request:**
+```json
+{
+  "text": "Namaste",
+  "language": "hi"
+}
+```
+
+**Response:**
+Returns audio bytes (e.g. `audio/wav`).
+
+---
+
 ### 📋 Session Management
 
 #### POST `/sessions`
@@ -110,11 +165,13 @@ Create a new kiosk session
 {
   "kiosk_id": "kiosk-001",
   "patient": {
-    "name": "Walk-in Patient",
+    "full_name": "Walk-in Patient",
     "date_of_birth": "1990-01-01",
     "sex": "unknown",
     "phone": "+91-9876543210"
-  }
+  },
+  "language": "hi",
+  "branch": "allopathy"
 }
 ```
 
@@ -188,7 +245,8 @@ Submit patient answer and get next question
 {
   "session_id": "uuid",
   "node_id": "q_chief_complaint",
-  "transcript": "I have been experiencing chest pain for 3 days"
+  "transcript": "I have been experiencing chest pain for 3 days",
+  "language": "hi"
 }
 ```
 
@@ -243,73 +301,49 @@ Get compiled intake summary
 
 ### 📄 Documents
 
-#### POST `/documents/upload`
-Upload and OCR a document
+#### POST `/documents/prescription`
+Upload prescription image or PDF, transcribe via Google Vision OCR, and extract structured medications.
 
 **Request:** `multipart/form-data`
-- `session_id` (query param)
-- `image` (file): JPEG/PNG image
+- `session_id` (form parameter)
+- `file` (file): JPEG, PNG, or PDF
 
 **Response:**
 ```json
 {
-  "document_id": "uuid",
+  "id": "uuid",
   "session_id": "uuid",
-  "storage_url": "https://storage.example.com/doc123.jpg",
-  "status": "PROCESSING"
-}
-```
-
-**Async Processing Webhook (Future):**
-```json
-{
-  "document_id": "uuid",
+  "file_name": "prescription.jpg",
+  "mime_type": "image/jpeg",
+  "size_bytes": 102400,
   "status": "COMPLETED",
-  "ocr_text": "Prescription text...",
-  "extracted_entities": [
+  "created_at": "2024-01-15T10:40:00Z",
+  "ocr_result": {
+    "document_id": "uuid",
+    "raw_text": "Prescription text...",
+    "created_at": "2024-01-15T10:40:05Z"
+  },
+  "medications": [
     {
-      "type": "medication",
       "name": "Metformin",
       "dose": "500mg",
       "frequency": "Twice daily",
       "duration": "30 days",
-      "bounding_box": {"x": 100, "y": 200, "width": 150, "height": 30},
-      "confidence": 92
+      "source": "ai_extracted",
+      "confidence": 0.95,
+      "requires_verification": false
     }
   ]
 }
 ```
 
-#### GET `/documents/{session_id}`
-List documents for a session
+#### GET `/documents/{document_id}`
+Retrieve document details, raw OCR transcription, and structured medications.
 
-**Response:**
-```json
-{
-  "documents": [
-    {
-      "id": "uuid",
-      "storage_url": "https://storage.example.com/doc123.jpg",
-      "status": "COMPLETED",
-      "doc_type": "prescription",
-      "created_at": "2024-01-15T10:40:00Z"
-    }
-  ]
-}
-```
+**Headers (Optional):** `Authorization: Bearer <token>`
+**Query Params (Optional):** `session_id=<uuid>`
 
-#### GET `/documents/{session_id}/crop`
-Get cropped region of document for entity verification
-
-**Query Params:**
-- `entity_id`: ID of extracted entity
-
-**Response:**
-```json
-{
-  "crop_url": "https://storage.example.com/crop_abc123.jpg"
-}
-```
+**Response:** (Same as POST /documents/prescription)
 
 ---
 
@@ -350,30 +384,7 @@ Get session info by token number
 
 ---
 
-### 🆘 Support
 
-#### POST `/support/request`
-Request support (call nurse or report fault)
-
-**Request:**
-```json
-{
-  "kiosk_id": "kiosk-001",
-  "session_id": "uuid",
-  "type": "nurse_call"
-}
-```
-
-**Response:**
-```json
-{
-  "request_id": "uuid",
-  "message": "Support request received",
-  "estimated_response_time": "2-5 minutes"
-}
-```
-
----
 
 ### 👨‍⚕️ Doctor Dashboard
 
@@ -398,7 +409,7 @@ Get list of waiting patients
 }
 ```
 
-#### GET `/doctor/patient/{token_number}`
+#### GET `/doctor/queue/{id}`
 Get patient summary by token
 
 **Headers:** `Authorization: Bearer <token>`

@@ -36,8 +36,8 @@ async def get_supabase_client() -> AsyncClient:
                 )
                 logger.info("Connected to remote Supabase database: %s", settings.SUPABASE_URL)
             except Exception as e:
-                logger.warning("Failed to initialize Supabase client: %s. Using in-memory fallback.", str(e))
-                _client = InMemoryDatabase()
+                logger.error("Failed to initialize Supabase client: %s", str(e))
+                raise
         else:
             logger.info("Running with seeded in-memory database for development.")
             _client = InMemoryDatabase()

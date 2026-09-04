@@ -14,21 +14,22 @@ export default function KiosksPage() {
   const [deletingId, setDeletingId] = useState<string | null>(null);
   const [showForm, setShowForm] = useState(false);
 
-  useEffect(() => {
-    fetchKiosks();
-  }, []);
-
   const fetchKiosks = async () => {
     try {
       setLoading(true);
-      const res = await admin.kiosks.list();
-      setKiosks(res.data.kiosks || res.data || []);
+      const response = await admin.kiosks.list();
+      setKiosks(response.data || []);
     } catch (error) {
       console.error('Failed to fetch kiosks:', error);
+      alert('Failed to load kiosks');
     } finally {
       setLoading(false);
     }
   };
+
+  useEffect(() => {
+    fetchKiosks();
+  }, []);
 
   const handleLogout = () => {
     localStorage.removeItem('access_token');

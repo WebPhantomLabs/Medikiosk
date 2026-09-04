@@ -77,25 +77,64 @@ class DocumentService:
 
         try:
             # 5. Perform OCR
-            raw_text = await self.ocr.extract_text(file_bytes, validated_mime)
+            try:
+                ocr_result = await self.ocr.extract_text(file_bytes, validated_mime)
+                raw_text = ocr_result.text
+                ocr_confidence = ocr_result.confidence
+            except Exception as ocr_exc:
+                logger.error("OCR failed for doc '%s': %s", doc_id, str(ocr_exc))
+                await self.doc_repo.update(doc_id, {
+                    "status": "OCR_FAILED",
+                    "error_message": f"OCR failed: {str(ocr_exc)}",
+                })
+                return DocumentResponse(
+                    id=doc_id,
+                    session_id=session_id,
+                    file_name=filename,
+                    mime_type=validated_mime,
+                    size_bytes=len(file_bytes),
+                    status="OCR_FAILED",
+                    error_message=f"OCR failed: {str(ocr_exc)}",
+                    created_at=doc_record["created_at"],
+                    ocr_result=None,
+                    medications=[],
+                )
+
             ocr_record = await self.ocr_repo.insert({
                 "document_id": doc_id,
                 "raw_text": raw_text,
             })
 
             # 6. Extract structured medications via AI
-            extracted_meds = await self.ai.extract_medications(raw_text)
-            for med in extracted_meds:
-                await self.med_repo.insert({
-                    "document_id": doc_id,
-                    "name": med.name,
-                    "dose": med.dose,
-                    "frequency": med.frequency,
-                    "duration": med.duration,
-                })
+            extracted_meds = []
+            ai_error = None
+            try:
+                extracted_meds = await self.ai.extract_medications(raw_text)
+                for med in extracted_meds:
+                    med.source = 'ai_extracted'
+                    med.confidence = ocr_confidence
+                    if ocr_confidence < 0.7:
+                        med.requires_verification = True
+
+                    await self.med_repo.insert({
+                        "document_id": doc_id,
+                        "name": med.name,
+                        "dose": med.dose,
+                        "frequency": med.frequency,
+                        "duration": med.duration,
+                        "source": med.source,
+                        "confidence": med.confidence,
+                        "requires_verification": med.requires_verification,
+                    })
+            except Exception as ai_exc:
+                logger.error("AI medication extraction failed for doc '%s': %s", doc_id, str(ai_exc))
+                ai_error = f"AI extraction failed: {str(ai_exc)}"
 
             # 7. Update document status to COMPLETED
-            updated_doc = await self.doc_repo.update(doc_id, {"status": "COMPLETED"})
+            updated_doc = await self.doc_repo.update(doc_id, {
+                "status": "COMPLETED",
+                "error_message": ai_error
+            })
 
             return DocumentResponse(
                 id=doc_id,
@@ -104,7 +143,7 @@ class DocumentService:
                 mime_type=validated_mime,
                 size_bytes=len(file_bytes),
                 status="COMPLETED",
-                error_message=None,
+                error_message=ai_error,
                 created_at=updated_doc["created_at"] if updated_doc else doc_record["created_at"],
                 ocr_result=OCRResultResponse(
                     document_id=doc_id,

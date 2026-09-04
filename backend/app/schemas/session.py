@@ -28,6 +28,8 @@ class SessionCreate(BaseModel):
     kiosk_id: str | None = None
     kiosk_code: str | None = None
     patient: PatientCreate
+    language: str = "en"
+    branch: str = "allopathy"
 
 
 class SessionResponse(BaseModel):

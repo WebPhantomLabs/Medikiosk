@@ -10,6 +10,7 @@ interface VoiceIntakeProps {
   question: string;
   transcript: string;
   isListening: boolean;
+  isProcessing?: boolean;
   progressPercent: number;
   onToggleListening: () => void;
   onBack: () => void;
@@ -20,6 +21,7 @@ export function VoiceIntake({
   question,
   transcript,
   isListening,
+  isProcessing = false,
   progressPercent,
   onToggleListening,
   onSubmit,
@@ -38,12 +40,6 @@ export function VoiceIntake({
   };
 
   const handleContinue = () => {
-    // If we're typing, we should arguably pass the typed text back up, but the parent
-    // likely expects `transcript` to be updated. Wait, `onSubmit` doesn't take arguments in `VoiceIntakeProps`!
-    // We should call `onSubmit` directly. The parent manages state. Wait, if `fallbackInput` modifies state, 
-    // it's not being synced to parent. The parent only knows about `transcript`. 
-    // Let's pass the active transcript back up if there's a callback, else we have to update the prop signature.
-    // For now, assume the parent just reads the global state or we just fire onSubmit.
     onSubmit(activeTranscript);
   };
 
@@ -54,7 +50,8 @@ export function VoiceIntake({
       <div className="flex-shrink-0 w-full flex items-center justify-between px-6 py-4 border-b border-[var(--mk-border)] bg-[var(--mk-bg)] z-10">
         <button 
           onClick={onBack}
-          className="flex items-center text-[var(--mk-text-secondary)] hover:text-[var(--mk-text)] transition-colors text-lg font-medium p-2"
+          disabled={isProcessing}
+          className="flex items-center text-[var(--mk-text-secondary)] hover:text-[var(--mk-text)] transition-colors text-lg font-medium p-2 disabled:opacity-50"
         >
           <CornerDownLeft className="w-5 h-5 mr-2" />
           Back
@@ -74,12 +71,13 @@ export function VoiceIntake({
         <div className="relative flex flex-col items-center justify-center space-y-4">
           <button
             onClick={onToggleListening}
+            disabled={isProcessing}
             aria-pressed={isListening}
             className={cn(
               'w-24 h-24 rounded-full transition-all duration-300 flex items-center justify-center shadow-md relative z-20',
               isListening
                 ? 'bg-red-500 scale-105'
-                : 'bg-[var(--mk-primary)] hover:scale-105 hover:shadow-lg'
+                : 'bg-[var(--mk-primary)] hover:scale-105 hover:shadow-lg disabled:opacity-50'
             )}
           >
             {isListening ? (
@@ -91,19 +89,19 @@ export function VoiceIntake({
 
           {/* Subtle Ring Animation */}
           <AnimatePresence>
-            {isListening && (
+            {(isListening || isProcessing) && (
               <motion.div
                 initial={{ scale: 1, opacity: 0 }}
                 animate={{ scale: 1.5, opacity: 0.15 }}
                 exit={{ scale: 1, opacity: 0 }}
                 transition={{ repeat: Infinity, duration: 2, ease: "easeInOut" }}
-                className="absolute top-0 w-24 h-24 rounded-full bg-red-500 pointer-events-none z-10"
+                className={`absolute top-0 w-24 h-24 rounded-full pointer-events-none z-10 ${isProcessing ? 'bg-blue-500' : 'bg-red-500'}`}
               />
             )}
           </AnimatePresence>
 
           <p className="text-xl text-[var(--mk-text-secondary)] font-medium h-8 flex items-center">
-            {isListening ? 'Listening...' : 'Tap to speak'}
+            {isProcessing ? 'Processing...' : isListening ? 'Listening...' : 'Tap to speak'}
           </p>
         </div>
 
@@ -114,9 +112,10 @@ export function VoiceIntake({
               <textarea 
                 value={typedTranscript}
                 onChange={(e) => setTypedTranscript(e.target.value)}
+                disabled={isProcessing}
                 placeholder="Type your answer here..."
                 autoFocus
-                className="w-full h-32 p-6 text-2xl bg-[var(--mk-surface)] border border-[var(--mk-border-strong)] text-[var(--mk-text)] rounded-2xl focus:border-[var(--mk-primary)] focus:ring-1 focus:ring-[var(--mk-primary)] outline-none shadow-sm resize-none"
+                className="w-full h-32 p-6 text-2xl bg-[var(--mk-surface)] border border-[var(--mk-border-strong)] text-[var(--mk-text)] rounded-2xl focus:border-[var(--mk-primary)] focus:ring-1 focus:ring-[var(--mk-primary)] outline-none shadow-sm resize-none disabled:opacity-50"
               />
             </motion.div>
           ) : (
@@ -140,20 +139,23 @@ export function VoiceIntake({
         <Button 
           size="kiosk"
           onClick={handleContinue}
-          disabled={!activeTranscript}
+          disabled={!activeTranscript || isProcessing}
           className="w-full max-w-md shadow-xl min-h-[64px] text-[26px] rounded-2xl"
           style={{ 
-            backgroundColor: activeTranscript ? 'var(--mk-primary)' : 'var(--mk-surface-muted)',
-            color: activeTranscript ? 'var(--mk-text-inverse)' : 'var(--mk-text-muted)'
+            backgroundColor: activeTranscript && !isProcessing ? 'var(--mk-primary)' : 'var(--mk-surface-muted)',
+            color: activeTranscript && !isProcessing ? 'var(--mk-text-inverse)' : 'var(--mk-text-muted)'
           }}
         >
-          Continue <ChevronRight className="w-8 h-8 ml-2" />
+          {isProcessing ? 'Processing...' : (
+            <>Continue <ChevronRight className="w-8 h-8 ml-2" /></>
+          )}
         </Button>
         
         {!fallbackInput && (
           <button 
             onClick={handleEnableTyping}
-            className="flex items-center text-lg text-[var(--mk-text-secondary)] hover:text-[var(--mk-primary)] transition-colors py-3 px-6 mt-2 font-medium"
+            disabled={isProcessing}
+            className="flex items-center text-lg text-[var(--mk-text-secondary)] hover:text-[var(--mk-primary)] transition-colors py-3 px-6 mt-2 font-medium disabled:opacity-50"
           >
             <Keyboard className="w-5 h-5 mr-2" />
             Type instead

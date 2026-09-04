@@ -9,19 +9,21 @@ ALLOWED_MIME_TYPES = {
 }
 
 
+from app.core.config import get_settings
+
 def validate_file(
     content: bytes,
     declared_mime_type: str,
-    max_size_mb: int = 10,
 ) -> str:
     """Validate uploaded document bytes against size and magic numbers.
     
     Returns normalized MIME type or raises ValidationError.
     """
-    max_bytes = max_size_mb * 1024 * 1024
+    settings = get_settings()
+    max_bytes = settings.MAX_UPLOAD_SIZE_BYTES
     if len(content) > max_bytes:
         raise ValidationError(
-            f"File size ({len(content)} bytes) exceeds maximum permitted limit of {max_size_mb} MB.",
+            f"File size ({len(content)} bytes) exceeds maximum permitted limit of {max_bytes} bytes.",
             code="FILE_TOO_LARGE",
         )
 

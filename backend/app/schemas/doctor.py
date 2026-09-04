@@ -32,6 +32,8 @@ class IntakeAnswerHistory(BaseModel):
     answer_category: str
     next_node_id: str | None = None
     sequence: int
+    source: str = 'ai_classification'
+    requires_verification: bool = True
     created_at: datetime | str
 
     model_config = {"from_attributes": True}

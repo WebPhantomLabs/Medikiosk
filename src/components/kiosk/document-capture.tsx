@@ -72,6 +72,7 @@ export function DocumentCapture({ onCapture, onSkip, isProcessing }: DocumentCap
     }
   };
 
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   useEffect(() => {
     if (!previewMode && cameraStatus === 'idle') {
       startCamera();
@@ -81,7 +82,7 @@ export function DocumentCapture({ onCapture, onSkip, isProcessing }: DocumentCap
     };
   }, [previewMode, stopCamera]);
 
-
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   useEffect(() => {
     const handleVisibilityChange = () => {
       if (document.hidden) {
@@ -267,7 +268,7 @@ export function DocumentCapture({ onCapture, onSkip, isProcessing }: DocumentCap
                  {cameraStatus === 'unsupported' && (
                   <>
                     <AlertTriangle className="w-16 h-16 text-red-500 mx-auto mb-4" />
-                    <p className="text-2xl font-bold mb-6">Camera capture isn't supported here.</p>
+                    <p className="text-2xl font-bold mb-6">Camera capture isn&apos;t supported here.</p>
                   </>
                  )}
               </div>

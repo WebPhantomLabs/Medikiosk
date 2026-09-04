@@ -16,15 +16,21 @@ class QuestionRepository(BaseRepository):
         )
         return response.data if response else None
 
-    async def get_start_node(self) -> dict[str, Any] | None:
-        response = (
-            await self.table.select("*")
-            .eq("is_start_node", True)
-            .eq("active", True)
-            .maybe_single()
-            .execute()
-        )
-        return response.data if response else None
+    async def get_start_node(self, branch: str = "allopathy") -> dict[str, Any] | None:
+        query = self.table.select("*").eq("is_start_node", True).eq("active", True)
+        
+        # Depending on DB schema we might need to filter by metadata->>branch, 
+        # but mock table doesn't support json operators easily via eq.
+        # Let's filter locally after querying if it's the mock. Wait, the mock eq 
+        # just does string match. We can use a trick or fetch all start nodes.
+        
+        response = await query.execute()
+        nodes = response.data or []
+        for node in nodes:
+            node_branch = node.get("branch", node.get("metadata", {}).get("branch", "allopathy"))
+            if node_branch == branch:
+                return node
+        return None
 
     async def list_active(self) -> list[dict[str, Any]]:
         response = await self.table.select("*").eq("active", True).order("created_at").execute()

@@ -38,18 +38,40 @@ class _RedactingFilter(logging.Filter):
         return True
 
 
+import json
+
+class JSONFormatter(logging.Formatter):
+    def format(self, record: logging.LogRecord) -> str:
+        log_obj = {
+            "timestamp": self.formatTime(record, self.datefmt),
+            "level": record.levelname,
+            "message": record.getMessage(),
+            "module": record.name,
+        }
+        if hasattr(record, "request_id"):
+            log_obj["request_id"] = record.request_id
+        
+        # We don't necessarily need all extra attributes, but the instructions 
+        # asked to include 'timestamp', 'level', 'message', 'request_id', 'module'.
+        # Since the _RedactingFilter runs before format, sensitive keys are redacted.
+        # We can dump extra keys if we want, or just stick to the requested fields.
+        # It's good practice to include them for structured logging.
+        standard_keys = {"name", "msg", "args", "levelname", "levelno", "pathname", "filename", "module", "exc_info", "exc_text", "stack_info", "lineno", "funcName", "created", "msecs", "relativeCreated", "thread", "threadName", "processName", "process", "taskName", "request_id"}
+        for key, val in vars(record).items():
+            if key not in standard_keys:
+                try:
+                    log_obj[key] = str(val) if not isinstance(val, (int, float, bool, str)) else val
+                except Exception:
+                    log_obj[key] = "<unserializable>"
+                    
+        return json.dumps(log_obj)
+
 def configure_logging(debug: bool = False) -> None:
     """Configure root logging once at application startup."""
     level = logging.DEBUG if debug else logging.INFO
 
     handler = logging.StreamHandler(sys.stdout)
-    formatter = logging.Formatter(
-        fmt=(
-            "%(asctime)s | %(levelname)-8s | %(name)s | "
-            "%(message)s"
-        ),
-        datefmt="%Y-%m-%dT%H:%M:%S%z",
-    )
+    formatter = JSONFormatter(datefmt="%Y-%m-%dT%H:%M:%S%z")
     handler.setFormatter(formatter)
     handler.addFilter(_RedactingFilter())
 

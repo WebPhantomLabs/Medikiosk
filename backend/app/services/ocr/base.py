@@ -1,6 +1,14 @@
 from __future__ import annotations
 
 from abc import ABC, abstractmethod
+from dataclasses import dataclass
+
+
+@dataclass
+class OCRResult:
+    text: str
+    confidence: float  # 0.0-1.0, average page confidence
+    language: str | None = None
 
 
 class OCRProvider(ABC):
@@ -11,6 +19,6 @@ class OCRProvider(ABC):
     """
 
     @abstractmethod
-    async def extract_text(self, file_bytes: bytes, mime_type: str) -> str:
+    async def extract_text(self, file_bytes: bytes, mime_type: str) -> OCRResult:
         """Extract text from the provided image or document bytes."""
         pass

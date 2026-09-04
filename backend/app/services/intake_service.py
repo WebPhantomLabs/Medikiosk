@@ -35,6 +35,27 @@ class IntakeService:
         self.intake_repo = IntakeAnswerRepository(db)
         self.token_repo = QueueTokenRepository(db)
 
+    def _get_localized_question_text(self, node: dict, language: str) -> str:
+        """Return question text in the requested language, with fallback."""
+        if language == 'en':
+            return node['question_text']
+        
+        # Check for translations field
+        translations = node.get('translations', {})
+        if language in translations and translations[language]:
+            return translations[language]
+        
+        # Check for question_text_{lang} field pattern
+        lang_key = f'question_text_{language}'
+        if lang_key in node and node[lang_key]:
+            return node[lang_key]
+        
+        # Fallback to English
+        from app.core.logging import get_logger
+        logger = get_logger(__name__)
+        logger.warning("Missing translation for node '%s' in language '%s', falling back to English", node.get('node_id'), language)
+        return node['question_text']
+
     async def answer_question(self, payload: IntakeAnswerRequest) -> IntakeAnswerResponse:
         session_id = payload.session_id
 
@@ -79,13 +100,38 @@ class IntakeService:
         next_node_id = None
 
         if transitions:
+            from app.core.exceptions import LlmProviderError, LlmValidationError
+            from app.core.logging import get_logger
+            logger = get_logger(__name__)
+
             # Let AI classify against DB-allowed transitions
-            classification = await self.ai.classify_intake_answer(
-                transcript=payload.transcript,
-                question_text=node["question_text"],
-                allowed_categories=allowed_categories,
-                metadata=node.get("metadata", {}),
-            )
+            try:
+                meta = node.get("metadata", {}).copy()
+                meta["language"] = payload.language
+                classification = await self.ai.classify_intake_answer(
+                    transcript=payload.transcript,
+                    question_text=node["question_text"],
+                    allowed_categories=allowed_categories,
+                    metadata=meta,
+                )
+            except (LlmProviderError, LlmValidationError) as e:
+                if len(transitions) == 1:
+                    fallback_cat = transitions[0]["answer_category"]
+                else:
+                    default_t = next((t for t in transitions if t["answer_category"].upper() == "DEFAULT"), None)
+                    if default_t:
+                        fallback_cat = default_t["answer_category"]
+                    else:
+                        raise LlmProviderError("AI unavailable and multiple paths exist", code="AI_PROVIDER_ERROR") from e
+                
+                logger.warning("AI classification failed: %s. Used deterministic fallback", e)
+                from app.schemas.intake import AnswerClassificationResult
+                classification = AnswerClassificationResult(
+                    classified_category=fallback_cat,
+                    confidence=0.0,
+                    reasoning="AI unavailable, used deterministic fallback"
+                )
+
             classified_category = classification.classified_category
 
             # Strict backend validation: check category exists in DB transitions
@@ -119,6 +165,7 @@ class IntakeService:
                     "answer_category": classified_category,
                     "next_node_id": next_node_id,
                     "sequence": sequence,
+                    "metadata": {"source": "deterministic_fallback" if "fallback" in (getattr(classification, 'reasoning', '') or '') else "ai_classification"}
                 })
                 break
             except Exception:
@@ -149,7 +196,7 @@ class IntakeService:
                 next_transitions = await self.transition_repo.get_transitions_for_node(next_node_id)
                 next_question_obj = QuestionNodeResponse(
                     node_id=next_node["node_id"],
-                    question_text=next_node["question_text"],
+                    question_text=self._get_localized_question_text(next_node, payload.language),
                     question_type=next_node.get("question_type", "single_choice"),
                     is_start_node=next_node.get("is_start_node", False),
                     is_terminal=next_node.get("is_terminal", False),

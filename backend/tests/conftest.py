@@ -319,6 +319,17 @@ class MockDatabase:
                 "created_at": now,
                 "updated_at": now,
             },
+            {
+                "node_id": "ayurveda_prakriti_start",
+                "question_text": "Welcome to the Ayurveda intake. Please identify your primary Dosha (Prakriti).",
+                "question_type": "single_choice",
+                "is_start_node": True,
+                "is_terminal": False,
+                "active": True,
+                "metadata": {"branch": "ayurveda"},
+                "created_at": now,
+                "updated_at": now,
+            },
         ]
 
         # Seed question transitions

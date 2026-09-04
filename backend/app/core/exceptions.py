@@ -198,3 +198,28 @@ class RateLimitedError(MediKioskError):
     code = "RATE_LIMITED"
     status_code = 429
     message = "Too many requests. Please try again later."
+
+
+# --- Speech ----------------------------------------------------------------------
+class SpeechProviderError(MediKioskError):
+    code = 'SPEECH_PROVIDER_ERROR'
+    status_code = 502
+    message = 'Speech provider failed.'
+
+class UnsupportedLanguageError(MediKioskError):
+    code = 'UNSUPPORTED_LANGUAGE'
+    status_code = 400
+    message = 'The requested language is not supported.'
+
+
+# --- ABDM ------------------------------------------------------------------------
+class ABDMProviderError(MediKioskError):
+    code = 'ABDM_PROVIDER_ERROR'
+    status_code = 502
+    message = 'ABDM service is unavailable.'
+
+
+class ABDMNotConfiguredError(MediKioskError):
+    code = 'ABDM_NOT_CONFIGURED'
+    status_code = 503
+    message = 'ABDM integration is not configured.'

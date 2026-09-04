@@ -11,6 +11,9 @@ class MedicationItem(BaseModel):
     dose: str | None = None
     frequency: str | None = None
     duration: str | None = None
+    source: str = 'ai_extracted'
+    confidence: float | None = None
+    requires_verification: bool = True
 
     model_config = {"from_attributes": True}
 
@@ -33,7 +36,7 @@ class DocumentResponse(BaseModel):
     file_name: str | None = None
     mime_type: str
     size_bytes: int
-    status: Literal["UPLOADED", "PROCESSING", "COMPLETED", "FAILED"]
+    status: Literal["UPLOADED", "PROCESSING", "COMPLETED", "FAILED", "OCR_FAILED"]
     error_message: str | None = None
     created_at: datetime | str
     ocr_result: OCRResultResponse | None = None

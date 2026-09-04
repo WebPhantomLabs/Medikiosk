@@ -42,7 +42,6 @@ export function PatientQueue({ onSelectPatient }: PatientQueueProps) {
   };
 
   useEffect(() => {
-    // eslint-disable-next-line react-hooks/set-state-in-effect
     fetchQueue();
     const interval = setInterval(() => {
       setIsRefreshing(true);

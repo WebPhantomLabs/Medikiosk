@@ -23,32 +23,34 @@ export default function AdminDashboard() {
   });
   const [recentSessions, setRecentSessions] = useState([]);
 
-  useEffect(() => {
-    fetchDashboardData();
-  }, []);
-
   const fetchDashboardData = async () => {
     try {
       const sessionsResponse = await admin.sessions.list();
-      const sessions = sessionsResponse.data.sessions || [];
+      const sessions = sessionsResponse.data?.sessions || [];
+      const kiosksResponse = await admin.kiosks.list();
+      const kiosks = kiosksResponse.data || [];
       
-      const today = new Date().toDateString();
-      const sessionsToday = sessions.filter(
-        (s: any) => new Date(s.started_at).toDateString() === today
-      );
+      const inProgress = sessions.filter((s: any) => 
+        ['WAITING_FOR_DOCTOR', 'IN_CONSULTATION', 'INTAKE_IN_PROGRESS'].includes(s.status)
+      ).length;
+      
+      const completed = sessions.filter((s: any) => s.status === 'COMPLETED').length;
+      const activeKiosks = kiosks.filter((k: any) => k.status === 'ACTIVE').length;
       
       setStats({
-        sessions_today: sessionsToday.length,
-        active_kiosks: 3, // Mock data
-        waiting_patients: sessions.filter((s: any) => s.status === 'WAITING_FOR_DOCTOR').length,
-        completed_today: sessionsToday.filter((s: any) => s.status === 'COMPLETED').length,
+        sessions_today: sessions.length,
+        active_kiosks: activeKiosks,
+        waiting_patients: inProgress,
+        completed_today: completed
       });
-      
-      setRecentSessions(sessions.slice(0, 10));
     } catch (error) {
       console.error('Failed to fetch dashboard data:', error);
     }
   };
+
+  useEffect(() => {
+    fetchDashboardData();
+  }, []);
 
   const handleLogout = () => {
     localStorage.removeItem('access_token');

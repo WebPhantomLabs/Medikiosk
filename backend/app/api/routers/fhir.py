@@ -39,4 +39,4 @@ async def get_fhir_bundle(
 ) -> FHIRBundleResponse:
     """Retrieve FHIR R4 Bundle for an encounter."""
     service = FHIRService(db)
-    return await service.generate_bundle(session_id)
+    return await service.get_bundle(session_id)

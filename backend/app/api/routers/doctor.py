@@ -102,3 +102,19 @@ async def record_patient_diagnosis(
     """Record authoritative clinical diagnosis by authenticated doctor."""
     service = DoctorService(db)
     return await service.record_diagnosis(session_id, current_user.id, payload)
+
+
+@router.post(
+    "/encounters/{session_id}/complete",
+    response_model=dict,
+    status_code=status.HTTP_200_OK,
+    dependencies=[Depends(require_role("DOCTOR"))],
+)
+async def complete_encounter_endpoint(
+    session_id: str,
+    current_user: CurrentUser = Depends(get_current_staff_user),
+    db: AsyncClient = Depends(get_db),
+) -> dict:
+    """Mark the encounter as fully completed (signed off)."""
+    service = DoctorService(db)
+    return await service.complete_encounter(session_id, current_user.id)

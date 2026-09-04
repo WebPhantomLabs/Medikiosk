@@ -22,6 +22,7 @@ export default function KioskPage() {
   const [isSupportOpen, setIsSupportOpen] = useState(false);
   const [isUploadingDoc, setIsUploadingDoc] = useState(false);
   const [isCreatingSession, setIsCreatingSession] = useState(false);
+  const [isProcessingIntake, setIsProcessingIntake] = useState(false);
   const [apiError, setApiError] = useState<string | null>(null);
   
   // Speech recognition ref to persist between renders
@@ -193,6 +194,7 @@ export default function KioskPage() {
     }
     
     setApiError(null);
+    setIsProcessingIntake(true);
 
     try {
       const res = await intake.submitAnswer({
@@ -221,6 +223,8 @@ export default function KioskPage() {
     } catch (err) {
       console.error('Failed to submit intake answer:', err);
       setApiError('Failed to submit answer. Please try again.');
+    } finally {
+      setIsProcessingIntake(false);
     }
   };
 
@@ -318,6 +322,7 @@ export default function KioskPage() {
                 question={currentQuestion || 'Please describe your symptoms'}
                 transcript={currentTranscript || ''}
                 isListening={isListening}
+                isProcessing={isProcessingIntake}
                 progressPercent={progressPercent}
                 onToggleListening={handleToggleListening}
                 onBack={() => setStep('demographics')}

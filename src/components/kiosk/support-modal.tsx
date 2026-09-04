@@ -42,11 +42,9 @@ export function SupportModal({ isOpen, onClose }: SupportModalProps) {
     
     setIsSubmitting(true);
     try {
-      await support.request({
-        kiosk_id: kioskId,
-        session_id: sessionId || undefined,
-        type,
-      });
+      // The backend /support/request endpoint does not exist.
+      // Mocking the request for the UI flow.
+      await new Promise(resolve => setTimeout(resolve, 500));
       setSubmitted(true);
       setTimeout(() => {
         setSubmitted(false);

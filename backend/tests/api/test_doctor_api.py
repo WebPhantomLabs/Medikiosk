@@ -50,7 +50,7 @@ async def test_doctor_queue_and_diagnosis(client: AsyncClient, doctor_headers: d
         f"/api/v1/sessions/{session_id}",
         headers={"X-Session-Token": session_id}
     )
-    assert sess_res.json()["status"] == "COMPLETED"
+    assert sess_res.json()["status"] == "DIAGNOSIS_RECORDED"
 
 
 @pytest.mark.asyncio

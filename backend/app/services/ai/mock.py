@@ -7,8 +7,15 @@ from app.schemas.intake import AnswerClassificationResult
 from app.services.ai.base import AIProvider
 
 
+from app.core.exceptions import LlmProviderError, LlmValidationError
+
 class MockAIProvider(AIProvider):
     """Deterministic mock AI provider for testing and offline development."""
+    _force_error: str | None = None
+
+    @classmethod
+    def set_force_error(cls, error_type: str | None) -> None:
+        cls._force_error = error_type
 
     def __init__(
         self,
@@ -29,6 +36,17 @@ class MockAIProvider(AIProvider):
         allowed_categories: list[str],
         metadata: dict | None = None,
     ) -> AnswerClassificationResult:
+        error = MockAIProvider._force_error
+        MockAIProvider._force_error = None
+        if error == "timeout":
+            raise LlmProviderError("AI timeout", code="AI_TIMEOUT")
+        elif error == "invalid_json":
+            raise LlmValidationError("Invalid JSON", code="AI_INVALID_RESPONSE")
+        elif error == "quota":
+            raise LlmProviderError("Quota exceeded", code="AI_QUOTA_EXCEEDED")
+        elif error == "hallucination":
+            return AnswerClassificationResult(classified_category="HALLUCINATED_NONSENSE", confidence=0.5, reasoning="test")
+
         clean_transcript = transcript.lower().strip()
 
         # Check explicit overrides

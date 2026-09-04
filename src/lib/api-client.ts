@@ -76,14 +76,14 @@ export const auth = {
 };
 
 export const sessions = {
-  create: (data: { kiosk_code?: string; kiosk_id?: string; patient: { full_name: string; date_of_birth?: string; sex?: string; phone?: string } }) =>
+  create: (data: { kiosk_code?: string; kiosk_id?: string; patient: { full_name: string; date_of_birth?: string; sex?: string; phone?: string }; language?: string; branch?: string }) =>
     apiClient.post('/sessions', data),
   get: (sessionId: string) =>
     apiClient.get(`/sessions/${sessionId}`),
 };
 
 export const intake = {
-  submitAnswer: (data: { session_id: string; node_id: string; transcript: string }) =>
+  submitAnswer: (data: { session_id: string; node_id: string; transcript: string; language?: string }) =>
     apiClient.post('/intake/answer', data),
 };
 
@@ -106,13 +106,24 @@ export const doctor = {
     apiClient.get(`/doctor/queue/${tokenNumberOrSessionId}`),
   recordDiagnosis: (sessionId: string, data: { diagnosis_text: string; notes?: string }) =>
     apiClient.post(`/doctor/encounters/${sessionId}/diagnosis`, data),
-  signoff: (sessionId: string, data: { diagnosis: string; prescription?: string }) =>
-    apiClient.post(`/doctor/encounters/${sessionId}/diagnosis`, { diagnosis_text: data.diagnosis, notes: data.prescription }),
+};
+
+export const speech = {
+  transcribe: (audio: Blob, language: string) => {
+    const formData = new FormData();
+    formData.append('audio', audio);
+    formData.append('language', language);
+    return apiClient.post('/speech/transcribe', formData, {
+      headers: { 'Content-Type': 'multipart/form-data' },
+    });
+  },
+  synthesize: (text: string, language: string) =>
+    apiClient.post('/speech/synthesize', { text, language }, { responseType: 'blob' }),
 };
 
 export const support = {
-  request: (data: { kiosk_id: string; session_id?: string; type: string }) =>
-    apiClient.post('/support/request', data).catch(() => ({ data: { status: 'mock_sent' } })),
+  // request: (data: { kiosk_id: string; session_id?: string; type: string }) =>
+  //   apiClient.post('/support/request', data).catch(() => ({ data: { status: 'mock_sent' } })),
 };
 
 export const fhir = {

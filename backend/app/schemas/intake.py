@@ -31,6 +31,7 @@ class IntakeAnswerRequest(BaseModel):
     session_id: str
     node_id: str
     transcript: str = Field(..., min_length=1, max_length=2000)
+    language: str = "en"
 
 
 class AnswerClassificationResult(BaseModel):
